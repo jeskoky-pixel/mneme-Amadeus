@@ -32,7 +32,7 @@
 
 Fork：[jeskoky-pixel/mneme-Amadeus](https://github.com/jeskoky-pixel/mneme-Amadeus)
 
-实现分支：`codex/mneme-amadeus-qq-memory`  
+实现分支：`codex/mneme-amadeus-qq-memory`
 Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://github.com/jeskoky-pixel/mneme-Amadeus/pull/1)
 
 ### 工作区边界
@@ -97,7 +97,8 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 在独立 fork checkout 中执行：
 
 - 全量：`node --test test/*.test.js` → **3602 tests，3601 pass，0 fail，1 skipped**；
-- QQ 归一化与作用域边界：9/9 pass；
+- QQ 归一化与作用域边界：10/10 pass；
+- dream narrative 工作区隔离：10/10 pass；
 - summarize 全文件：97/97 pass；
 - `git diff --check` 通过，`src/` 与 `lib/` 已用项目同步脚本更新；
 - 未安装、链接或修改当前本地 DSH/QQ Bridge 组件，未改动现有记忆库。
