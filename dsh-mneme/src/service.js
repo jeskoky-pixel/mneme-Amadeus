@@ -1588,8 +1588,13 @@ export function createService({ store, mirror, config, onWrite, logger, document
         throw new Error("workspace scope is required for this memory write");
       }
       const rawWorkspace = memory.workspace_scope;
+      const globalToken = typeof rawWorkspace === "string"
+        && ["global", "*"].includes(rawWorkspace.trim().toLowerCase());
+      if (memory.workspace_scope_source === "auto" && (rawWorkspace === null || globalToken)) {
+        throw new Error("workspace scope is required for this memory write");
+      }
       const explicitGlobal = (rawWorkspace === null && memory.workspace_scope_source === "explicit")
-        || (typeof rawWorkspace === "string" && ["global", "*"].includes(rawWorkspace.trim().toLowerCase()));
+        || (globalToken && memory.workspace_scope_source !== "auto");
       const normalizedWorkspace = explicitGlobal ? null : normalizeWorkspacePath(rawWorkspace);
       if (!explicitGlobal && !normalizedWorkspace) {
         throw new Error("workspace scope is required for this memory write");

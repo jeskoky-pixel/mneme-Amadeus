@@ -39,6 +39,10 @@ test("required mode rejects unscoped service writes but permits explicit global"
     () => service.saveWithDedupe({ type: "project", title: "自动空作用域", content: "不应伪装全局", workspace_scope: null, workspace_scope_source: "auto" }),
     /workspace scope is required/
   );
+  assert.throws(
+    () => service.saveWithDedupe({ type: "project", title: "自动 global 路径", content: "不应伪装全局", workspace_scope: "global", workspace_scope_source: "auto" }),
+    /workspace scope is required/
+  );
   const global = service.saveWithDedupe({ type: "project", title: "显式全局", content: "明确共享", workspace_scope: null, workspace_scope_source: "explicit" }).memory;
   assert.equal(global.workspace_scope ?? null, null);
   store.close();
