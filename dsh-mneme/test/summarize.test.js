@@ -263,6 +263,32 @@ test("continuous QQ capture replays the newest event after an in-flight distilla
   summarizer.dispose();
 });
 
+test("QQ distill records retain sender and conversation metadata", async () => {
+  const { events: listeners, store } = setup({
+    qqBridgeMemory: { enabled: true, captureContinuous: true },
+    distillRecords: { enabled: true },
+    distillRateLimitIntervalMs: 0
+  });
+  const handler = listeners.find((entry) => entry.name === "session/event").fn;
+  const sessionEvents = [
+    { seq: 1, type: "tool/call", data: { name: "qq_get_unread_messages", callId: "in" } },
+    { seq: 2, type: "tool/result", data: { message: { source: { name: "qq_get_unread_messages", callId: "in" }, content: [{ type: "text", text: JSON.stringify({ key: "group:123", messages: [{ messageId: "m1", seq: 7, sender: "Alice", userId: "42", text: "请记住这个决定" }] }) }] } } },
+    { seq: 3, type: "turn/end" }
+  ];
+  const session = {
+    id: "qq-meta-record",
+    header: { agentPreset: "qq-chat-v3" },
+    requestHeader: () => ({ config: testConfig({ provider: "deepseek", model: "deepseek-chat" }) }),
+    snapshotEvents: () => sessionEvents
+  };
+  await handler(session, sessionEvents[2]);
+  const records = store.distillRecordsFor("qq-meta-record", 1, 3);
+  assert.equal(records.length, 1);
+  assert.match(records[0].text, /sender=Alice/);
+  assert.match(records[0].text, /senderId=42/);
+  assert.match(records[0].text, /conversation=group:123/);
+});
+
 // DSH ≥0.1.2-rc removed Session.events; the session object only exposes
 // snapshotEvents(). Regression for #59: with only the old .events path the
 // collector saw an empty log and no LLM call ever happened.

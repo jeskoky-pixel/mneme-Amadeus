@@ -558,6 +558,24 @@ function describeAuditPatch(stats) {
   return out;
 }
 
+// QQ metadata is part of the conversation boundary, not an implementation
+// detail: the same workspace may contain several people and group/private
+// chats. Keep a compact, stable source marker beside the text so both the LLM
+// transcript and distill_records preserve who/where a statement came from.
+function qqPartText(part) {
+  const metadata = part?.metadata ?? {};
+  const clean = (value, max = 120) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const fields = [
+    metadata.channel ? `channel=${clean(metadata.channel, 24)}` : "",
+    metadata.conversationId ? `conversation=${clean(metadata.conversationId)}` : "",
+    metadata.groupId ? `group=${clean(metadata.groupId, 48)}` : "",
+    metadata.senderName ? `sender=${clean(metadata.senderName, 64)}` : "",
+    metadata.senderId ? `senderId=${clean(metadata.senderId, 48)}` : "",
+    metadata.sourceSession ? `sourceSession=${clean(metadata.sourceSession, 96)}` : ""
+  ].filter(Boolean);
+  return fields.length ? `[QQ ${fields.join(" ")}] ${part.text}` : part.text;
+}
+
 async function collectMessages(session, maxChars = 8000, language = "zh", afterSeq, throughSeq, describePart, options = {}) {
   const events = snapshotSessionEvents(session, afterSeq, throughSeq);
   const lines = [];
@@ -585,8 +603,9 @@ async function collectMessages(session, maxChars = 8000, language = "zh", afterS
     // messages. Tool arguments, wait state, memory recall and a DSH final
     // assistant message are transport noise unless a send tool confirmed them.
     for (const part of qqParts) {
-      if (part.role === "user") lines.push(STR.transcriptUser[language](part.text));
-      else lines.push(STR.transcriptAssistant[language](part.text));
+      const text = qqPartText(part);
+      if (part.role === "user") lines.push(STR.transcriptUser[language](text));
+      else lines.push(STR.transcriptAssistant[language](text));
     }
   }
   const appendSubagentMessage = (message) => {
@@ -747,14 +766,14 @@ function collectTranscriptRecords(session, afterSeq, throughSeq, distilledAt, op
       seenKeys.add(part.key);
       const existing = bySeq.get(part.seq);
       if (existing) {
-        existing.text = `${existing.text}\n${part.text}`;
+        existing.text = `${existing.text}\n${qqPartText(part)}`;
         if (existing.role !== part.role) existing.role = "mixed";
       }
       else bySeq.set(part.seq, {
         sessionId: session.id,
         seq: part.seq,
         role: part.role,
-        text: part.text,
+        text: qqPartText(part),
         windowId: `session:${session.id}:${part.seq}`,
         distilledAt
       });

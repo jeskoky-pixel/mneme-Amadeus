@@ -294,7 +294,8 @@ export function normalizeQqEvents(events, { sessionId = "" } = {}) {
     const texts = requested.length
       ? requested.slice(0, confirmed)
       : explicitRecords.map((message) => message.text);
-    for (const text of texts.slice(0, confirmed ?? texts.length)) add({ kind: "outbound", text, seq, callId, metadata: {}, confirmation: "sent" });
+    const resultMetadata = { ...eventMetadata(call?.args), ...eventMetadata(result) };
+    for (const text of texts.slice(0, confirmed ?? texts.length)) add({ kind: "outbound", text, seq, callId, metadata: resultMetadata, confirmation: "sent" });
   }
   return out;
 }

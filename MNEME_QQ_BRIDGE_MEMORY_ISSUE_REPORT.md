@@ -62,6 +62,7 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 - 入站读取 `user/message` 中的 `【本次消息快照】`，以及 `qq_get_unread_messages`、`qq_wait_for_messages` 返回的 `messages/newMessages`；`qq_get_prompt` 的角色卡和状态文本不会被当成聊天；
 - 解析工具返回中的 JSON text block，不把整个工具 JSON 写成用户发言；
 - 保留 messageId、QQ seq、发送者、群/私聊、conversation key、来源 session 和 DSH 事件序号；
+- 这些参与者元数据会以稳定的 QQ 来源标记进入蒸馏转录和 `distill_records`，使同一工作区内不同群友/私聊对象的偏好与经历仍可区分；
 - 忽略 `isSelf` 消息；相同 QQ 消息从唤醒快照和 unread/wait 重复到达时合并；不同时间、不同 QQ seq 的相同文字保留为两条；
 - 出站支持 `qq_send_message`、`qq_send_group_message`、`qq_send_private_message`、`qq_reply` 和 `qq_send_burst`；只在结果明确报告 `sent` 数量或可识别的已发送记录时写入助手发言；
 - 发送失败、歧义结果和未发送的回合末尾 assistant 文本不进入聊天记忆；部分发送只保留明确确认的前缀。HTTP 错误中只有内部 `error.sent` 而没有公开 sent 数量时，适配层会保守丢弃；
@@ -96,10 +97,10 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 
 在独立 fork checkout 中执行：
 
-- 全量：`node --test test/*.test.js` → **3602 tests，3601 pass，0 fail，1 skipped**；
+- 全量：`node --test test/*.test.js` → **3603 tests，3602 pass，0 fail，1 skipped**；
 - QQ 归一化与作用域边界：10/10 pass；
 - dream narrative 工作区隔离：10/10 pass；
-- summarize 全文件：97/97 pass；
+- summarize 全文件：98/98 pass；
 - `git diff --check` 通过，`src/` 与 `lib/` 已用项目同步脚本更新；
 - 未安装、链接或修改当前本地 DSH/QQ Bridge 组件，未改动现有记忆库。
 
