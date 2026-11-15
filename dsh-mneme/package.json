@@ -19,11 +19,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/slow-stack/mneme.git"
+    "url": "git+https://github.com/jeskoky-pixel/mneme-Amadeus.git"
   },
-  "homepage": "https://github.com/slow-stack/mneme#readme",
+  "homepage": "https://github.com/jeskoky-pixel/mneme-Amadeus#readme",
   "bugs": {
-    "url": "https://github.com/slow-stack/mneme/issues"
+    "url": "https://github.com/jeskoky-pixel/mneme-Amadeus/issues"
   },
   "type": "module",
   "main": "lib/index.js",

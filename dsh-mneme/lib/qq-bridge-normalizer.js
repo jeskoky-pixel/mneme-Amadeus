@@ -156,8 +156,9 @@ function isQqToolCall(data) {
 
 function messageTexts(args) {
   const raw = args?.messages ?? args?.message ?? args?.text ?? args?.content;
-  if (Array.isArray(raw)) return raw.map(textOf).map((text) => text.trim()).filter(Boolean);
-  const text = textOf(raw).trim();
+  const parsed = parseJson(raw);
+  if (Array.isArray(parsed)) return parsed.map(textOf).map((text) => text.trim()).filter(Boolean);
+  const text = textOf(parsed).trim();
   return text ? [text] : [];
 }
 

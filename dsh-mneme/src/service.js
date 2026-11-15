@@ -1582,13 +1582,23 @@ export function createService({ store, mirror, config, onWrite, logger, document
     if (memory?.type === "document") {
       throw new Error("type 'document' is minted only via registerDocument (summary + doc_path + evidence)");
     }
-    if (config?.workspaceScopeRequired === true && memory
-      && Object.prototype.hasOwnProperty.call(memory, "workspace_scope")) {
-      memory = { ...memory, workspace_scope: normalizeWorkspacePath(memory.workspace_scope) };
+    if (config?.workspaceScopeRequired === true) {
+      if (!memory || !Object.prototype.hasOwnProperty.call(memory, "workspace_scope")
+        || memory.workspace_scope === undefined) {
+        throw new Error("workspace scope is required for this memory write");
+      }
+      const rawWorkspace = memory.workspace_scope;
+      const explicitGlobal = (rawWorkspace === null && memory.workspace_scope_source === "explicit")
+        || (typeof rawWorkspace === "string" && ["global", "*"].includes(rawWorkspace.trim().toLowerCase()));
+      const normalizedWorkspace = explicitGlobal ? null : normalizeWorkspacePath(rawWorkspace);
+      if (!explicitGlobal && !normalizedWorkspace) {
+        throw new Error("workspace scope is required for this memory write");
+      }
+      memory = { ...memory, workspace_scope: normalizedWorkspace };
       // An explicit null/global write is a deliberate shared write and must
       // clear the previous workspace latch; otherwise dream could keep using
       // workspace A after the latest write was explicitly global.
-      lastWriteWorkspaceScope = memory.workspace_scope;
+      lastWriteWorkspaceScope = normalizedWorkspace;
     }
     // Bug7: score quality once (after dedupe lookup, before write). Failures
     // inside the evaluator are impossible (pure function), but the write that

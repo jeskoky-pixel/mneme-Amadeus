@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeWorkspacePath, normalizeScope, resolveRequiredWorkspaceScope } from "../src/scope-boundary.js";
+import { createStore } from "../src/store.js";
+import { createService } from "../src/service.js";
+import { testConfig } from "./helpers/test-config.js";
 
 test("normalizes Windows workspace paths consistently on any host", () => {
   assert.equal(normalizeWorkspacePath("C:/Work/../Amadeus/"), "c:\\amadeus");
@@ -23,4 +26,20 @@ test("required scope accepts registry workspace and canonicalizes it", () => {
   });
   assert.equal(result.ok, true);
   assert.equal(result.scope.workspace_scope, "c:\\work");
+});
+
+test("required mode rejects unscoped service writes but permits explicit global", () => {
+  const store = createStore(":memory:");
+  const service = createService({ store, mirror: null, config: testConfig({ workspaceScopeRequired: true }) });
+  assert.throws(
+    () => service.saveWithDedupe({ type: "project", title: "无作用域", content: "不应静默落全局" }),
+    /workspace scope is required/
+  );
+  assert.throws(
+    () => service.saveWithDedupe({ type: "project", title: "自动空作用域", content: "不应伪装全局", workspace_scope: null, workspace_scope_source: "auto" }),
+    /workspace scope is required/
+  );
+  const global = service.saveWithDedupe({ type: "project", title: "显式全局", content: "明确共享", workspace_scope: null, workspace_scope_source: "explicit" }).memory;
+  assert.equal(global.workspace_scope ?? null, null);
+  store.close();
 });

@@ -38,7 +38,7 @@ test("does not merge equal QQ sequence numbers from different conversations", ()
 
 test("records only confirmed outbound messages, including partial sends", () => {
   const events = [
-    { seq: 1, type: "tool/call", data: { name: "qq_send_burst", callId: "send", arguments: { messages: ["第一条", "第二条"] } } },
+    { seq: 1, type: "tool/call", data: { name: "qq_send_burst", callId: "send", arguments: { messages: JSON.stringify(["第一条", "第二条"]) } } },
     { seq: 2, type: "tool/result", data: { isError: true, message: { source: { name: "qq_send_burst", callId: "send" }, content: [{ type: "text", text: JSON.stringify({ ok: false, sent: 1, failed: 1 }) }] } } },
     { seq: 3, type: "assistant/message", data: { content: [{ type: "text", text: "这句没有发到 QQ" }] } }
   ];

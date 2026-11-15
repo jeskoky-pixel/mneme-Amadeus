@@ -39,6 +39,7 @@ Fork：[jeskoky-pixel/mneme-Amadeus](https://github.com/jeskoky-pixel/mneme-Amad
 - 同一 QQ Bridge 工作区下的私聊、群聊和多个 Session 共享长期记忆；
 - 其他工作区的带标签记忆不会进入搜索、注入、工具读取、蒸馏和 dream 候选；
 - 作用域无法解析时，QQ 蒸馏不推进游标、不回退到全库；写入工具也 fail-closed；
+- `workspaceScopeRequired` 还在 `service.saveWithDedupe` 这一写入总闸上生效：API、standalone、bootstrap 等无会话入口若未显式提供工作区会拒绝写入，只有显式 global 才允许共享；
 - Windows 驱动器路径、UNC 路径和 POSIX 路径在边界处统一规范化；
 - `workspace_scope: "global"` 是显式共享写入；历史无标签行继续按兼容策略视为全局行；
 - `memory_get/update/delete/forget/archive/pin` 都经过同一可见性判断，避免仅凭 ID 跨工作区修改；
@@ -92,7 +93,7 @@ Fork：[jeskoky-pixel/mneme-Amadeus](https://github.com/jeskoky-pixel/mneme-Amad
 
 在独立 fork checkout 中执行：
 
-- 全量：`node --test test/*.test.js` → **3601 tests，3600 pass，0 fail，1 skipped**；
+- 全量：`node --test test/*.test.js` → **3602 tests，3601 pass，0 fail，1 skipped**；
 - QQ 归一化与作用域边界：9/9 pass；
 - summarize 全文件：97/97 pass；
 - `git diff --check` 通过，`src/` 与 `lib/` 已用项目同步脚本更新；
