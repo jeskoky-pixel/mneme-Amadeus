@@ -32,6 +32,9 @@
 
 Fork：[jeskoky-pixel/mneme-Amadeus](https://github.com/jeskoky-pixel/mneme-Amadeus)
 
+实现分支：`codex/mneme-amadeus-qq-memory`  
+Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://github.com/jeskoky-pixel/mneme-Amadeus/pull/1)
+
 ### 工作区边界
 
 新增 `workspaceScopeRequired` 配置，并复用 Mneme 的 `createScopeResolver`、`workspace_scope`、严格可见性和 SQL 过滤：
