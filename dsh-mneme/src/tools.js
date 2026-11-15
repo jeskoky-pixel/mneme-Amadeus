@@ -1,5 +1,6 @@
 import { defineTool } from "@deepseek-ai/dsh-tools";
 import { createScopeResolver, normalizeExplicitScope, sessionKeyOf, sessionOf } from "./scope.js";
+import { normalizeWorkspacePath } from "./scope-boundary.js";
 import { describeLocalRuntime, resolveRuntimeEntry } from "./runtime/loader.js";
 import { defaultRuntimeDir } from "./runtime/layout.js";
 import { hostModulesDir, loadRuntimeManifest, provisionRuntime } from "./runtime/provision.js";
@@ -80,6 +81,14 @@ function occurredWindow(args) {
 // flag 关或会话 scope 未解析出（flag 关时解析器返回 null）→ 空对象不过滤；
 // scope 为 {null,null}（匿名会话）时照传——store 侧 fail-closed 只放行未标注行。
 function strictVisibility(config, scope) {
+  if (config?.workspaceScopeRequired === true) {
+    return {
+      visibility: {
+        workspaceRequired: true,
+        workspaceScope: normalizeWorkspacePath(scope?.workspace_scope)
+      }
+    };
+  }
   if (config?.strictScope !== true || !scope) return {};
   return { visibility: { agentScope: scope.agent_scope, workspaceScope: scope.workspace_scope } };
 }
@@ -126,6 +135,14 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
   // flag 关闭时恒返回 null——写入不标注，检索不加权，行为与 A1 前完全一致。
   // logger 透传：registry 反查失败时 warnOnce 才有出口（否则静默降级无观测）。
   const resolveSessionScope = createScopeResolver({ ctx, config, logger: ctx.logger });
+  const requireWorkspaceForWrite = (scope, args) => {
+    if (config?.workspaceScopeRequired !== true) return;
+    // An explicit `global`/`*` declaration is an intentional shared write;
+    // otherwise a required adapter must prove its workspace before writing.
+    if (args?.workspace_scope === undefined && !scope?.workspace_scope) {
+      throw new Error("workspace scope is required for this memory write");
+    }
+  };
   // 宿主在 render 前按成功 schema 校验返回值，仓库解析失败要走工具错误通道。
   const resolveChoroRepo = (ref) => {
     const row = choro.resolveRepo(ref);
@@ -159,6 +176,14 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
   // 「不存在」处理——update/delete 与 memory_get 同款无存在性泄漏。strictScope
   // 关、或会话身份取不到（scope 为 null）时恒可见（与 get 的短路语义一致）。
   const visibleUnderStrictScope = (memory, exec) => {
+    if (config?.workspaceScopeRequired === true) {
+      if (!memory) return false;
+      const scope = resolveSessionScope(exec);
+      const expected = normalizeWorkspacePath(scope?.workspace_scope);
+      if (!expected) return false;
+      const actual = normalizeWorkspacePath(memory.workspace_scope);
+      return actual === null || actual === expected;
+    }
     if (config?.strictScope !== true) return true;
     const scope = resolveSessionScope(exec);
     return !scope || service.isVisibleInScope(memory, scope);
@@ -225,7 +250,8 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
         // （存储 NULL，由 source 列与「从未标注」区分）。非字符串参数在工具
         // 入参 schema 层即被拒（type: "string"）——脏值到不了归一化，无静默放宽。
         const scope = resolveSessionScope(exec);
-        const autoStamping = config?.scopeEnabled === true;
+        requireWorkspaceForWrite(scope, args);
+        const autoStamping = config?.scopeEnabled === true || config?.workspaceScopeRequired === true;
         const agentLabel = args.agent_scope !== undefined
           ? { value: normalizeExplicitScope(args.agent_scope), source: "explicit" }
           : autoStamping && scope ? { value: scope.agent_scope, source: "auto" } : null;
@@ -393,7 +419,7 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
         // 宿主注册表按 (args, runContext) 两参调用处理器，从 arguments 取第二参。
         const runContext = arguments[1];
         const scope = resolveSessionScope(runContext);
-        if (config.strictScope === true && scope && !service.isVisibleInScope(memory, scope)) {
+        if (!visibleUnderStrictScope(memory, runContext)) {
           throw new Error("memory not found");
         }
         return { memory: service.toApiList([memory])[0] };
@@ -541,7 +567,9 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
         }
       },
       async execute(args) {
-        if (service.getById(args.id) === undefined) {
+        const exec = arguments[1];
+        const target = visibleForTool(args.id, exec);
+        if (target === undefined) {
           throw new Error("memory not found");
         }
         // 先读链（setForget 不改 superseded_by，两侧等价；放在前面是为了让「找不到
@@ -549,7 +577,7 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
         // typeof 守卫与 service.js 的 store 层守卫对称：生产 createService 一定有这个
         // 方法，但旧装配/手写测试替身没有时，裸调用会抛 TypeError 把整条遗忘操作打掉
         // ——回执增强不该有否决权。缺方法按「无链信息」降级。
-        const chain = typeof service.supersedeContext === "function" ? service.supersedeContext(args.id) : null;
+        const chain = typeof service.supersedeContext === "function" ? service.supersedeContext(target.id) : null;
         const memory = service.setForget(args.id, args.forgotten ?? true);
         return {
           memory: { id: memory.id, forgotten: memory.forgotten },
@@ -700,7 +728,8 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
         render: (_args, value) => TEXT_OUTPUT(`Memory ${value.memory.id} ${value.memory.archived ? "archived" : "restored"}.`)
       },
       async execute(args) {
-        if (service.getById(args.id) === undefined) {
+        const target = visibleForTool(args.id, arguments[1]);
+        if (target === undefined) {
           throw new Error("memory not found");
         }
         const memory = service.setArchived(args.id, args.archived ?? true);
@@ -836,7 +865,8 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
         // scope 标注与 memory_save 同款（#170）：默认会话身份自动标注，显式
         // 参数逐维覆盖。校验/去重/supersede 全在 service.registerDocument。
         const scope = resolveSessionScope(exec);
-        const autoStamping = config?.scopeEnabled === true;
+        requireWorkspaceForWrite(scope, args);
+        const autoStamping = config?.scopeEnabled === true || config?.workspaceScopeRequired === true;
         const agentLabel = args.agent_scope !== undefined
           ? { value: normalizeExplicitScope(args.agent_scope), source: "explicit" }
           : autoStamping && scope ? { value: scope.agent_scope, source: "auto" } : null;
@@ -1030,7 +1060,8 @@ export function createTools(ctx, service, config, embedder, sessionGate = null, 
       async execute(args, exec) {
         const mode = String(args?.mode ?? "dryRun").trim();
         const scope = resolveSessionScope(exec);
-        const autoStamping = config?.scopeEnabled === true;
+        requireWorkspaceForWrite(scope, args);
+        const autoStamping = config?.scopeEnabled === true || config?.workspaceScopeRequired === true;
         // 载荷级缺省与 memory_save 同源：显式参数盖 explicit 章，否则吃会话自动标注
         // 盖 auto 章。少了这一步，整理接口就成了第二条「写进库却不带 scope」的通道
         // ——candidates 会全部落在未标注（全局可见）那一档。

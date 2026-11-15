@@ -226,6 +226,43 @@ test("skips summarization for events other than turn/end", async () => {
   assert.equal(calls.length, 0);
 });
 
+test("continuous QQ capture replays the newest event after an in-flight distillation", async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const events = [userMessage("第一条 QQ 消息", 1)];
+  let streamCalls = 0;
+  const { events: listeners, calls, summarizer } = setup({
+    qqBridgeMemory: { enabled: true, captureContinuous: true },
+    distillRateLimitIntervalMs: 0,
+  }, {
+    stream: async function* () {
+      streamCalls += 1;
+      if (streamCalls === 1) await gate;
+      yield { type: "block-start", block: { type: "text" } };
+      yield { type: "text-delta", delta: JSON.stringify([{ type: "decision", title: "QQ 对话", content: `第${streamCalls}轮`, importance: 4 }]) };
+      yield { type: "block-end", block: { type: "text" } };
+      yield { type: "finish", kind: "ok" };
+    }
+  });
+  const handler = listeners.find((entry) => entry.name === "session/event").fn;
+  const session = {
+    id: "qq-continuous-pending",
+    header: { agentPreset: "qq-chat-v3" },
+    requestHeader: () => ({ config: testConfig({ provider: "deepseek", model: "deepseek-chat" }) }),
+    snapshotEvents: () => events
+  };
+  const first = handler(session, events[0]);
+  for (let i = 0; i < 8 && calls.length < 1; i++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1, "the first continuous event must start a distillation");
+  events.push(userMessage("第二条 QQ 消息", 2));
+  await handler(session, events[1]);
+  release();
+  await first;
+  for (let i = 0; i < 8 && calls.length < 2; i++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 2, "the event that arrived during the first run must trigger a replay");
+  summarizer.dispose();
+});
+
 // DSH ≥0.1.2-rc removed Session.events; the session object only exposes
 // snapshotEvents(). Regression for #59: with only the old .events path the
 // collector saw an empty log and no LLM call ever happened.

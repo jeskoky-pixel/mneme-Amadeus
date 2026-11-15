@@ -109,6 +109,36 @@ test("narrative phase synthesizes per-topic bars with intersected evidence", asy
   store.close();
 });
 
+test("required workspace dream narratives exclude another workspace", async () => {
+  const workspaceA = "C:\\Workspaces\\A";
+  const workspaceB = "C:\\Workspaces\\B";
+  const { store, service } = setup({ workspaceScopeRequired: true, scopeEnabled: true });
+  const byWorkspace = new Map();
+  for (const [workspace, prefix] of [[workspaceA, "A"], [workspaceB, "B"]]) {
+    const rows = [];
+    for (const title of ["发布", "回滚", "盯盘"]) {
+      rows.push(service.saveWithDedupe({
+        type: "project", title: `${prefix}-${title}`, content: `${prefix} 工作区的部署事实。`, tags: ["部署"],
+        workspace_scope: workspace, workspace_scope_source: "auto"
+      }).memory);
+    }
+    byWorkspace.set(workspace, rows);
+  }
+  // The latest stamped workspace is the bounded dream context in the current
+  // scheduler; make A the active workspace after seeding both buckets.
+  service.saveWithDedupe({ type: "project", title: "A-最新", content: "A 仍是当前工作区。", tags: ["其他"], workspace_scope: workspaceA, workspace_scope_source: "auto" });
+  const callsRef = { n: 0 };
+  const narrativeJson = JSON.stringify([{ tag: "部署", content: "A 工作区叙述", evidence: byWorkspace.get(workspaceA).map((m) => m.id) }]);
+  const ctx = mockCtx([{ decisions: [] }, { summary: "A 总览" }, { summary: narrativeJson }], callsRef);
+  const dream = createDreamScheduler({ thresholdCount: 1, thresholdChars: 0, delayMs: 0 });
+  const result = await dream.runDream(ctx, service, { dreamProvider: "deepseek", dreamModel: "deepseek-chat", dreamNarrativeEnabled: true, workspaceScopeRequired: true });
+  assert.equal(result.narratives, 1);
+  const bar = store.all().find((m) => m.source === "narrative");
+  assert.equal(bar.workspace_scope, "c:\\workspaces\\a");
+  assert.deepEqual(bar.evidence.map((item) => item.memory_id).sort(), byWorkspace.get(workspaceA).map((m) => m.id).sort());
+  store.close();
+});
+
 test("narrative phase off by default: no extra LLM call", async () => {
   const { store, service } = setup();
   seedDeploy(store, service);
