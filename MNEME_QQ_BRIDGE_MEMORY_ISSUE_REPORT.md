@@ -1,7 +1,7 @@
 # Mneme 在 QQ Bridge 场景下的记忆质量问题与 fork 实施报告
 
 日期：2026-11-16
-状态：已建立 `mneme-Amadeus` fork，并完成第一版实现与回归验证
+状态：已建立 `mneme-Amadeus` fork，并完成实现、持续采集修复与回归验证
 
 ## 结论
 
@@ -96,6 +96,14 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 - 三个开关都复用现有 `/features`、`feature_flags` 和待重启提示，改动后重启 DSH 使启动配置生效；
 - 面板只增加这三个新功能入口，普通 DSH 的既有设置和 Web UI 不改。
 
+### 持续采集触发修复
+
+持续采集监听器现在会缓存前置 `tool/call` 的 `callId → 工具名`，在正常的
+`tool/result`（只带 `kind: "tool"` 与 `callId`）到达时回查工具名，再判断是否为
+QQ Bridge 工具。这样等待、读取和实际发送工具的结果都能在结果到达时触发连续蒸馏；
+没有匹配调用或没有 QQ 工具名时仍不会触发。关联表按 Session 隔离、结果消费后删除，
+并有上限，避免长期运行任务积累悬挂调用。
+
 ## 巩固边界与已知限制
 
 `runDream` 在 required 模式下只使用最近带标签工作区的候选，并且不会把两个带标签工作区合并到同一轮；为避免旧 scheduler 没有工作区载体而越界，`runSleep` 在 required 模式下安全跳过。当前 dream 的触发阈值仍按全库数量计算，A/B 工作区交替写入时最近工作区优先，另一侧可能延迟。这些是明确的安全降级，不是会话级隔离缺失；后续可把 scheduler 改成按 workspace 分桶的队列。
@@ -109,7 +117,7 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 - 全量：`node --test test/*.test.js` → **3604 tests，3603 pass，0 fail，1 skipped**；
 - QQ 归一化与作用域边界：10/10 pass；
 - dream narrative 工作区隔离：10/10 pass；
-- summarize 全文件：98/98 pass；
+- summarize 全文件：100/100 pass；
 - `git diff --check` 通过，`src/` 与 `lib/` 已用项目同步脚本更新；
 - 未安装、链接或修改当前本地 DSH/QQ Bridge 组件，未改动现有记忆库。
 
@@ -121,4 +129,3 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 2. 为现有记忆生成只读分类报告，再人工决定归档配置复读和运行噪声。
 3. 若需要完整巩固隔离，把 dream trigger/baseline 和 sleep phases 改为 workspace 队列/载体。
 4. 继续跟进 Mneme upstream，在适配层保持小而清晰的改动，避免把 QQ 专用判断散落到核心存储代码。
-
