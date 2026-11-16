@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { TYPE_FILE, MIRROR_READONLY_TYPES } from "./mirror.js";
 import { updatedAtBounds } from "./store.js";
 import { normalizeExplicitScope, scopeKeyOf } from "./scope.js";
+import { normalizeWorkspacePath } from "./scope-boundary.js";
 import { createScopeStateGate } from "./scope-state.js";
 import { STR, langOf } from "./lang.js";
 import { computeHeat } from "./heat.js";
@@ -213,6 +214,9 @@ export function createService({ store, mirror, config, onWrite, logger, document
   // (the scheduler holds a reference back to the service, so it cannot be
   // passed in the constructor). Fired on the same write events as onWrite.
   let dreamHook = null;
+  // Latest explicitly stamped workspace. The dream scheduler uses this as its
+  // bounded scope when the opt-in required boundary is enabled.
+  let lastWriteWorkspaceScope = null;
 
   // Optional sleep scheduler hook (v0.4.0), installed via setSleepHook after
   // creation. Fired on the same write events as onWrite: it tells the sleep
@@ -448,6 +452,16 @@ export function createService({ store, mirror, config, onWrite, logger, document
    */
   function gateByScope(rows, scope) {
     const gated = scopeStateGate.filter(rows);
+    if (config?.workspaceScopeRequired === true) {
+      const expected = normalizeWorkspacePath(scope?.workspace_scope);
+      if (!expected) return [];
+      // Explicitly unscoped legacy/global rows remain usable. Any row carrying
+      // a workspace label must match exactly, including auto/dream rows.
+      return gated.filter((m) => {
+        const actual = normalizeWorkspacePath(m?.workspace_scope);
+        return actual === null || actual === expected;
+      });
+    }
     if (config?.strictScope !== true || !scope) return gated;
     return gated.filter((m) => isVisibleInScope(m, scope));
   }
@@ -1568,6 +1582,29 @@ export function createService({ store, mirror, config, onWrite, logger, document
     if (memory?.type === "document") {
       throw new Error("type 'document' is minted only via registerDocument (summary + doc_path + evidence)");
     }
+    if (config?.workspaceScopeRequired === true) {
+      if (!memory || !Object.prototype.hasOwnProperty.call(memory, "workspace_scope")
+        || memory.workspace_scope === undefined) {
+        throw new Error("workspace scope is required for this memory write");
+      }
+      const rawWorkspace = memory.workspace_scope;
+      const globalToken = typeof rawWorkspace === "string"
+        && ["global", "*"].includes(rawWorkspace.trim().toLowerCase());
+      if (memory.workspace_scope_source === "auto" && (rawWorkspace === null || globalToken)) {
+        throw new Error("workspace scope is required for this memory write");
+      }
+      const explicitGlobal = (rawWorkspace === null && memory.workspace_scope_source === "explicit")
+        || (globalToken && memory.workspace_scope_source !== "auto");
+      const normalizedWorkspace = explicitGlobal ? null : normalizeWorkspacePath(rawWorkspace);
+      if (!explicitGlobal && !normalizedWorkspace) {
+        throw new Error("workspace scope is required for this memory write");
+      }
+      memory = { ...memory, workspace_scope: normalizedWorkspace };
+      // An explicit null/global write is a deliberate shared write and must
+      // clear the previous workspace latch; otherwise dream could keep using
+      // workspace A after the latest write was explicitly global.
+      lastWriteWorkspaceScope = normalizedWorkspace;
+    }
     // Bug7: score quality once (after dedupe lookup, before write). Failures
     // inside the evaluator are impossible (pure function), but the write that
     // records the score must never fail the save — wrap defensively.
@@ -2170,7 +2207,15 @@ export function createService({ store, mirror, config, onWrite, logger, document
     // （graphInjectHint 开时作为线索行进注入块；CodeRabbit on #371 的可达性分析，
     // /context 与宿主注入同受影响）。pin 池 eligible 取自本过滤之后的候选，
     // 顺带保证越权行进不了 pin。
-    if (config?.strictScope === true && scope) {
+    if (config?.workspaceScopeRequired === true) {
+      const expected = normalizeWorkspacePath(scope?.workspace_scope);
+      candidates = expected
+        ? candidates.filter((m) => {
+          const actual = normalizeWorkspacePath(m?.workspace_scope);
+          return actual === null || actual === expected;
+        })
+        : [];
+    } else if (config?.strictScope === true && scope) {
       candidates = candidates.filter((m) => isVisibleInScope(m, scope));
     }
     // issue #471 政策轴：挂在事实轴之后、pin 池之前。位置与上面同一条纪律——必须在
@@ -3114,6 +3159,7 @@ export function createService({ store, mirror, config, onWrite, logger, document
 
   return {
     saveWithDedupe,
+    workspaceScopeSnapshot: () => lastWriteWorkspaceScope,
     registerDocument,
     // agent 主动整理接口（#231）：内聚块在 src/organize.js，这里只做依赖注入 +
     // barrel 出口。本体不带配置键（第一批口径），暴露闸住在工具层（#231 第二批的

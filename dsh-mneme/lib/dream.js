@@ -4,6 +4,7 @@ import { triagePair } from "./dream/triage.js";
 import { resolveConflictMode, warnConflictModeDegraded } from "./conflict-mode.js";
 import { clusterByTag, intersectEvidence } from "./dream/narratives.js";
 import { scopeKeyOf } from "./scope.js";
+import { normalizeWorkspacePath } from "./scope-boundary.js";
 // Issue #239（第 4 项）镜像到巩固：错峰时段解析与「最近的高峰结束时刻」从独立的
 // 零依赖模块 peak-hours.js 取（该模块从 summarize.js 抽出，PR #320 review）——
 // 不另写一份解析器，两份实现漂移会让「同一个时段串在两处行为不同」，那比没有
@@ -611,9 +612,15 @@ async function reEmbedMemory(semantic, memory, logger) {
  * → saveWithDedupe(source="narrative", _overwrite) 落库。按需检索不常驻注入。
  * 任何失败降级为 0 条，绝不反噬 dream 主流程。
  */
-async function generateNarratives({ ctx, service, config, route, language, effort, semantic, logger }) {
+async function generateNarratives({ ctx, service, config, route, language, effort, semantic, logger, dreamWorkspace = null }) {
+  const inDreamWorkspace = (memory) => {
+    if (!dreamWorkspace) return true;
+    const workspace = normalizeWorkspacePath(memory?.workspace_scope);
+    return workspace === null || workspace === dreamWorkspace;
+  };
   const inputs = withoutPaused(service, service.all().filter((m) => !isImportedRow(m) && !m.archived && !m.forgotten && m.type !== "summary" && m.type !== "document"));
-  const clusters = clusterByTag(inputs, { minCluster: config.dreamNarrativeMinCluster ?? 3 });
+  const scopedInputs = dreamWorkspace ? inputs.filter(inDreamWorkspace) : inputs;
+  const clusters = clusterByTag(scopedInputs, { minCluster: config.dreamNarrativeMinCluster ?? 3 });
   if (!clusters.length) return 0;
 
   const listing = clusters
@@ -662,7 +669,8 @@ async function generateNarratives({ ctx, service, config, route, language, effor
       tags: [cluster.tag],
       source: "narrative",
       evidence: evidenceIds.map((id) => ({ memory_id: id, op: "support", at: now })),
-      _overwrite: true
+      _overwrite: true,
+      ...(dreamWorkspace ? { workspace_scope: dreamWorkspace, workspace_scope_source: "auto" } : {})
     });
     if (!memory) continue;
     stored++;
@@ -1157,7 +1165,21 @@ export function createDreamScheduler({ onRun, thresholdCount = 10, thresholdChar
   async function runDream(ctx, service, config) {
     const language = langOf(config);
     const logger = ctx.logger;
+    const requiredWorkspace = config?.workspaceScopeRequired === true;
+    const dreamWorkspace = requiredWorkspace
+      ? normalizeWorkspacePath(service.workspaceScopeSnapshot?.())
+      : null;
+    if (requiredWorkspace && !dreamWorkspace) {
+      logger?.warn?.("[dsh-mneme] dream skipped: no workspace scope is available");
+      return { ok: true, applied: 0, skipped: true, reason: "workspace-unresolved", summary: false };
+    }
+    const inDreamWorkspace = (memory) => {
+      if (!dreamWorkspace) return true;
+      const workspace = normalizeWorkspacePath(memory?.workspace_scope);
+      return workspace === null || workspace === dreamWorkspace;
+    };
     let memories = withoutPaused(service, service.all().filter((m) => !isImportedRow(m) && !m.archived && m.type !== "summary" && m.type !== "document"));
+    if (dreamWorkspace) memories = memories.filter(inDreamWorkspace);
     if (memories.length === 0) return { ok: true, applied: 0, skipped: true, summary: false };
     // Issue #89：开跑时刻既喂给审计行（created_at），也是调度器闸门的时间基准。
     const dreamStartedAt = Date.now();
@@ -1787,9 +1809,10 @@ export function createDreamScheduler({ onRun, thresholdCount = 10, thresholdChar
     // 一旦进了总览，注入侧按作用域过滤就再也拦不住它：内容已经洗成了全局行。
     // 别的入口漏了只是「那一条漏过去」，这里漏了是「洗一遍之后一直漏」。
     const summaryAll = withoutPaused(service, service.all().filter((m) => !isImportedRow(m) && !m.archived && m.type !== "summary" && m.type !== "document"));
+    const scopedSummaryAll = dreamWorkspace ? summaryAll.filter(inDreamWorkspace) : summaryAll;
     const summaryMaxInputs = Number.isInteger(config.dreamSummaryMaxInputs) ? config.dreamSummaryMaxInputs : 0;
-    const summaryInputs = summaryMaxInputs > 0 && summaryAll.length > summaryMaxInputs
-      ? [...summaryAll]
+    const summaryInputs = summaryMaxInputs > 0 && scopedSummaryAll.length > summaryMaxInputs
+      ? [...scopedSummaryAll]
         .sort((a, b) => {
           const ta = String(a.updated_at ?? "");
           const tb = String(b.updated_at ?? "");
@@ -1798,7 +1821,7 @@ export function createDreamScheduler({ onRun, thresholdCount = 10, thresholdChar
           return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
         })
         .slice(0, summaryMaxInputs)
-      : summaryAll;
+      : scopedSummaryAll;
 
     const summaryScope = STR.summaryScope[language](
       summaryInputs.length,
@@ -1822,7 +1845,15 @@ export function createDreamScheduler({ onRun, thresholdCount = 10, thresholdChar
       // #663: the dream overview passes the same admission gate as any other write.
       // It has no session, so only the level-1 judgment applies. A denial must not be
       // reported as a stored summary — the run outcome and the resident bar read this.
-      const summaryOutcome = service.saveWithDedupe({ type: "summary", title: STR.summaryTitle[language], content: `${summaryText.trim()}${summaryScope}`, importance: 5, source: "dream", _overwrite: true });
+      const summaryOutcome = service.saveWithDedupe({
+        type: "summary",
+        title: STR.summaryTitle[language],
+        content: `${summaryText.trim()}${summaryScope}`,
+        importance: 5,
+        source: "dream",
+        _overwrite: true,
+        ...(dreamWorkspace ? { workspace_scope: dreamWorkspace, workspace_scope_source: "auto" } : {})
+      });
       if (summaryOutcome?.action === "denied") {
         logger?.warn?.(`dsh-mneme dream: summary write denied by admission (${summaryOutcome.reason ?? "unknown"})`);
       } else {
@@ -1833,7 +1864,7 @@ export function createDreamScheduler({ onRun, thresholdCount = 10, thresholdChar
         try {
           // source="dream" 限定：叙述条（source=narrative）同为 summary 类型，
           // 不加限定时 find 可能截胡，把总览的 re-embed 花在叙述条上。
-          const summary = service.all().find((m) => m.type === "summary" && m.source === "dream");
+          const summary = service.all().find((m) => m.type === "summary" && m.source === "dream" && inDreamWorkspace(m));
           if (summary) await reEmbedMemory(semantic, summary, logger);
         } catch { /* best-effort */ }
       }
@@ -1844,7 +1875,7 @@ export function createDreamScheduler({ onRun, thresholdCount = 10, thresholdChar
     let narrativesStored = 0;
     if (config.dreamNarrativeEnabled === true) {
       try {
-        narrativesStored = await generateNarratives({ ctx, service, config, route, language, effort, semantic, logger });
+        narrativesStored = await generateNarratives({ ctx, service, config, route, language, effort, semantic, logger, dreamWorkspace });
       } catch (error) {
         logger?.warn?.(`dsh-mneme dream: narrative phase failed: ${String(error)}`);
       }

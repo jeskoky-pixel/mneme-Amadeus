@@ -1762,6 +1762,13 @@ function deriveStatus(phases) {
  * observable alongside consolidation runs.
  */
 export async function runSleep(ctx, service, config, logger, semantic = null, signal = null) {
+  if (config?.workspaceScopeRequired === true) {
+    // Sleep has several independent global row pools and no active-workspace
+    // carrier in its scheduler callback. Skipping is safer than consolidating
+    // two labelled workspaces together; dream has a bounded workspace pool.
+    logger?.warn?.("dsh-mneme sleep skipped: workspace-scoped mode has no sleep carrier");
+    return { ok: true, skipped: true, reason: "workspace-scope-required", phases: {} };
+  }
   const runId = randomUUID();
   // Issue #89：开跑时刻——审计行 created_at 的基准（= 冷却种子），run 耗时
   // （LLM 各 phase）不应计入重启后的冷却窗口。

@@ -2004,7 +2004,13 @@ export function createStore(path) {
       } else {
         clauses.push("(agent_scope IS NULL OR agent_scope_source IS NOT 'explicit')");
       }
-      if (visibility.workspaceScope != null) {
+      if (visibility.workspaceRequired === true) {
+        if (visibility.workspaceScope == null) clauses.push("1 = 0");
+        else {
+          clauses.push("(workspace_scope IS NULL OR workspace_scope = ?)");
+          params.push(visibility.workspaceScope);
+        }
+      } else if (visibility.workspaceScope != null) {
         clauses.push("(workspace_scope IS NULL OR workspace_scope_source IS NOT 'explicit' OR workspace_scope = ?)");
         params.push(visibility.workspaceScope);
       } else {
@@ -2634,7 +2640,13 @@ export function createStore(path) {
       } else {
         clauses.push("(agent_scope IS NULL OR agent_scope_source IS NOT 'explicit')");
       }
-      if (visibility.workspaceScope != null) {
+      if (visibility.workspaceRequired === true) {
+        if (visibility.workspaceScope == null) clauses.push("1 = 0");
+        else {
+          clauses.push("(workspace_scope IS NULL OR workspace_scope = ?)");
+          params.push(visibility.workspaceScope);
+        }
+      } else if (visibility.workspaceScope != null) {
         clauses.push("(workspace_scope IS NULL OR workspace_scope_source IS NOT 'explicit' OR workspace_scope = ?)");
         params.push(visibility.workspaceScope);
       } else {

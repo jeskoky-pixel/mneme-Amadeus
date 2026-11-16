@@ -183,6 +183,9 @@ test("feature flags accept the new boolean, string, url and enum keys", () => {
     "memoryQualityFilter.enabled": false,
     "llmAudit.enabled": false,
     "distillRecords.enabled": false,
+    "qqBridgeMemory.enabled": true,
+    "qqBridgeMemory.captureContinuous": false,
+    workspaceScopeRequired: true,
     "distillRecords.retentionDays": 30,
     bm25SearchEnabled: false,
     conflictFreezeEnabled: true,
@@ -203,6 +206,9 @@ test("feature flags accept the new boolean, string, url and enum keys", () => {
   // #399：布尔与整数范围两类键都要能过白名单（retentionDays 是 natural 1..3650）
   assert.equal(flags["distillRecords.enabled"], false);
   assert.equal(flags["distillRecords.retentionDays"], 30);
+  assert.equal(flags["qqBridgeMemory.enabled"], true);
+  assert.equal(flags["qqBridgeMemory.captureContinuous"], false);
+  assert.equal(flags.workspaceScopeRequired, true);
   assert.equal(flags.bm25SearchEnabled, false);
   assert.equal(flags.conflictFreezeEnabled, true);
   assert.equal(flags.trustEpistemicWeighting, true);
@@ -225,6 +231,9 @@ test("nested feature flag keys are validated as booleans and rejected otherwise"
   assert.throws(() => settings.setFeatureFlags({ "memoryQualityFilter.enabled": "yes" }), /memoryQualityFilter\.enabled/);
   assert.throws(() => settings.setFeatureFlags({ "llmAudit.enabled": 1 }), /llmAudit\.enabled/);
   assert.throws(() => settings.setFeatureFlags({ "distillRecords.enabled": 1 }), /distillRecords\.enabled/);
+  assert.throws(() => settings.setFeatureFlags({ "qqBridgeMemory.enabled": "yes" }), /qqBridgeMemory\.enabled/);
+  assert.throws(() => settings.setFeatureFlags({ "qqBridgeMemory.captureContinuous": 1 }), /qqBridgeMemory\.captureContinuous/);
+  assert.throws(() => settings.setFeatureFlags({ workspaceScopeRequired: "yes" }), /workspaceScopeRequired/);
   // 范围外的整数也要被挡（retentionDays 上限 3650）
   assert.throws(() => settings.setFeatureFlags({ "distillRecords.retentionDays": 0 }), /distillRecords\.retentionDays/);
   assert.deepEqual(settings.getFeatureFlags(), {}, "failed writes persist nothing");
@@ -271,3 +280,4 @@ test("getFeatureFlags drops corrupted string, url and enum keys from the kv", ()
   assert.deepEqual(settings.getFeatureFlags(), { autoInject: false });
   store.close();
 });
+

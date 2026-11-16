@@ -9,6 +9,8 @@ import { injectChildEnabled } from "./config.js";
 import { withEffortFallback, describeStreamFailure, EFFORT_REJECT_RE } from "./dream.js";
 // v0.9.0（M.O. 项目记忆）：蒸馏写入复用工具路径那把作用域解析器，见 createSummarizer。
 import { createScopeResolver } from "./scope.js";
+import { isQqBridgeSession, isQqBridgeTool, normalizeQqEvents } from "./qq-bridge-normalizer.js";
+import { resolveRequiredWorkspaceScope } from "./scope-boundary.js";
 // #493 补充 §③：断链与巩固侧同一份实现（src/fence.js）。转录里出现闭合标记时
 // 原先能提前闭合围栏——那是把用户消息升格成指令最短的一条路。
 import { breakFenceMarkers } from "./fence.js";
@@ -556,7 +558,25 @@ function describeAuditPatch(stats) {
   return out;
 }
 
-async function collectMessages(session, maxChars = 8000, language = "zh", afterSeq, throughSeq, describePart) {
+// QQ metadata is part of the conversation boundary, not an implementation
+// detail: the same workspace may contain several people and group/private
+// chats. Keep a compact, stable source marker beside the text so both the LLM
+// transcript and distill_records preserve who/where a statement came from.
+function qqPartText(part) {
+  const metadata = part?.metadata ?? {};
+  const clean = (value, max = 120) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const fields = [
+    metadata.channel ? `channel=${clean(metadata.channel, 24)}` : "",
+    metadata.conversationId ? `conversation=${clean(metadata.conversationId)}` : "",
+    metadata.groupId ? `group=${clean(metadata.groupId, 48)}` : "",
+    metadata.senderName ? `sender=${clean(metadata.senderName, 64)}` : "",
+    metadata.senderId ? `senderId=${clean(metadata.senderId, 48)}` : "",
+    metadata.sourceSession ? `sourceSession=${clean(metadata.sourceSession, 96)}` : ""
+  ].filter(Boolean);
+  return fields.length ? `[QQ ${fields.join(" ")}] ${part.text}` : part.text;
+}
+
+async function collectMessages(session, maxChars = 8000, language = "zh", afterSeq, throughSeq, describePart, options = {}) {
   const events = snapshotSessionEvents(session, afterSeq, throughSeq);
   const lines = [];
   const seenSubagentMessages = new Set();
@@ -577,6 +597,17 @@ async function collectMessages(session, maxChars = 8000, language = "zh", afterS
     if (n <= 1) return "…".slice(0, n);
     return `…${s.slice(-(n - 1))}`;
   };
+  const qqParts = options.qqMode ? normalizeQqEvents(events, { sessionId: session?.id }) : null;
+  if (qqParts) {
+    // QQ mode deliberately renders only the boundary adapter's confirmed
+    // messages. Tool arguments, wait state, memory recall and a DSH final
+    // assistant message are transport noise unless a send tool confirmed them.
+    for (const part of qqParts) {
+      const text = qqPartText(part);
+      if (part.role === "user") lines.push(STR.transcriptUser[language](text));
+      else lines.push(STR.transcriptAssistant[language](text));
+    }
+  }
   const appendSubagentMessage = (message) => {
     const kind = message?.source?.kind;
     if (!SUBAGENT_MESSAGE_KINDS.has(kind)) return;
@@ -589,7 +620,7 @@ async function collectMessages(session, maxChars = 8000, language = "zh", afterS
     seenSubagentMessages.add(key);
     lines.push(STR.transcriptAgent[language](text));
   };
-  for (const event of events) {
+  for (const event of qqParts ? [] : events) {
     const data = event?.data ?? {};
     // #399：用户提示 / 助手公开正文 / 子会话交付三种可公开内容由共享谓词产出，
     // 渲染与落盘因此不可能对「什么算公开」产生分歧（见 publicTranscriptParts）。
@@ -711,7 +742,7 @@ async function collectMessages(session, maxChars = 8000, language = "zh", afterS
  * 只收有 seq 的事件：distill_records 的主键是 (session_id, seq)，seq 也是溯源
  * 区间与幂等的唯一依据；没有 seq 就无法表达「这条记录属于哪个窗口」。
  */
-function collectTranscriptRecords(session, afterSeq, throughSeq, distilledAt) {
+function collectTranscriptRecords(session, afterSeq, throughSeq, distilledAt, options = {}) {
   const events = snapshotSessionEvents(session, afterSeq, throughSeq);
   const records = [];
   const seenKeys = new Set();
@@ -719,6 +750,37 @@ function collectTranscriptRecords(session, afterSeq, throughSeq, distilledAt) {
   // LLM 实际看到的那个窗口，溯源链接要回答的是「这条记忆出自哪个窗口」。
   let seqStart;
   let seqEnd;
+  const qqParts = options.qqMode ? normalizeQqEvents(events, { sessionId: session?.id }) : null;
+  if (qqParts) {
+    for (const event of events) {
+      const seq = eventSeq(event);
+      if (seq !== undefined) {
+        if (seqStart === undefined || seq < seqStart) seqStart = seq;
+        if (seqEnd === undefined || seq > seqEnd) seqEnd = seq;
+      }
+    }
+    const bySeq = new Map();
+    for (const part of qqParts) {
+      if (!Number.isSafeInteger(part.seq)) continue;
+      if (seenKeys.has(part.key)) continue;
+      seenKeys.add(part.key);
+      const existing = bySeq.get(part.seq);
+      if (existing) {
+        existing.text = `${existing.text}\n${qqPartText(part)}`;
+        if (existing.role !== part.role) existing.role = "mixed";
+      }
+      else bySeq.set(part.seq, {
+        sessionId: session.id,
+        seq: part.seq,
+        role: part.role,
+        text: qqPartText(part),
+        windowId: `session:${session.id}:${part.seq}`,
+        distilledAt
+      });
+    }
+    records.push(...bySeq.values());
+    return { records, seqStart, seqEnd };
+  }
   for (const event of events) {
     const seq = eventSeq(event);
     if (seq !== undefined) {
@@ -820,6 +882,10 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
   // Issue #239（第 4 项）：每会话最多挂一个待补跑定时器（错峰队列用）；dispose 时
   // 一并清理，避免插件卸载后还留着一个会调模型的定时器。
   const deferredRuns = new Map();
+  // A continuous QQ event can arrive while the LLM is still distilling the
+  // previous window. Keep the newest trigger and replay it after cleanup so a
+  // long-running wait/send sequence cannot leave the cursor stranded.
+  const pendingRuns = new Map();
   // Issue #210：只在一次蒸馏完整成功后记录已消费的最后事件 seq。
   const lastDistilledSeq = new Map();
   // Issue #493：per-session 连续解析失败计数（失败护栏用）。同一窗口在确定性
@@ -871,6 +937,53 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
       ctx.logger?.warn?.(`dsh-mneme: parse failure streak clear failed: ${String(error)}`);
     }
   }
+  // DSH tool/result events carry only the callId in their source metadata. Keep
+  // the preceding tool/call name long enough for continuous QQ capture to tell
+  // a real QQ result from an unrelated tool result. The map is per session so
+  // identical call IDs from different sessions cannot cross the workspace or
+  // conversation boundary. Results remove their entry; the cap protects a
+  // session with abandoned calls from growing without bound.
+  const pendingToolCalls = new Map();
+  const qqSessions = new Set();
+  const MAX_PENDING_TOOL_CALLS = 256;
+  const sessionKey = (session) => session?.id ?? session;
+  const eventToolName = (event) => event?.data?.name ?? event?.data?.toolName
+    ?? event?.data?.message?.source?.toolName ?? event?.data?.message?.source?.name;
+  const eventCallId = (event) => {
+    const data = event?.data;
+    const value = data?.callId ?? data?.call_id ?? data?.toolCallId ?? data?.tool_call_id
+      ?? data?.message?.callId ?? data?.message?.toolCallId ?? data?.message?.source?.callId;
+    return value == null ? "" : String(value);
+  };
+  const rememberToolCall = (session, event) => {
+    if (event?.type !== "tool/call") return;
+    const name = eventToolName(event);
+    const callId = eventCallId(event);
+    const key = sessionKey(session);
+    if (isQqBridgeTool(name)) qqSessions.add(key);
+    if (!name || !callId) return;
+    let calls = pendingToolCalls.get(key);
+    if (!calls) {
+      calls = new Map();
+      pendingToolCalls.set(key, calls);
+    }
+    calls.delete(callId);
+    calls.set(callId, String(name));
+    while (calls.size > MAX_PENDING_TOOL_CALLS) calls.delete(calls.keys().next().value);
+  };
+  const resolveToolResultName = (session, event) => {
+    const direct = eventToolName(event);
+    const callId = eventCallId(event);
+    const calls = pendingToolCalls.get(sessionKey(session));
+    const remembered = callId && calls ? calls.get(callId) : undefined;
+    if (callId && calls) {
+      calls.delete(callId);
+      if (!calls.size) pendingToolCalls.delete(sessionKey(session));
+    }
+    const name = direct ?? remembered;
+    if (isQqBridgeTool(name)) qqSessions.add(sessionKey(session));
+    return name;
+  };
   let disposed = false;
 
   /** 写一条 autoSummarize 的 LLM 审计行（审计失败绝不阻塞蒸馏本身）。 */
@@ -934,7 +1047,11 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
   }
 
   async function summarize(session, triggerEvent, opts = {}) {
-    if (disposed || inFlight.has(session.id)) return;
+    if (disposed) return;
+    if (inFlight.has(session.id)) {
+      pendingRuns.set(session.id, triggerEvent);
+      return;
+    }
     if (sessionGate?.isOff(session)) return;
 
     const header = session.requestHeader?.()?.config;
@@ -1018,6 +1135,24 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
         : undefined;
       const previousSeq = persistedCursor?.last_seq ?? lastDistilledSeq.get(session.id);
       const triggerSeq = eventSeq(triggerEvent);
+      const qqMode = config?.qqBridgeMemory?.enabled === true
+        && isQqBridgeSession(session, snapshotSessionEvents(session));
+      const qqScopeResult = qqMode && config?.workspaceScopeRequired === true
+        ? resolveRequiredWorkspaceScope({ ctx, config, session, logger: ctx.logger })
+        : { ok: true, scope: null };
+      if (qqMode && config?.workspaceScopeRequired === true && !qqScopeResult.ok) {
+        // A QQ session with no proven workspace must never fall back to the
+        // global pool. Leave the cursor untouched so the next event can retry
+        // after the host supplies workspace metadata.
+        ctx.logger?.warn?.(`dsh-mneme: QQ memory skipped: ${qqScopeResult.reason}`);
+        writeAudit({
+          timestamp: new Date(now()).toISOString(),
+          model_id: route ? `${route.provider}:${route.model}` : "unknown",
+          status: "skipped",
+          error_message: "workspace-unresolved"
+        });
+        return;
+      }
       // 只读取上次成功游标之后、当前 turn/end 之前的事件。旧版 snapshotEvents
       // 即使忽略范围参数，collectMessages 仍会按事件 seq 二次过滤。
       // 图像描述档（docs/DISTILL.md:346）：三件事按顺序判——开关、路由、模型
@@ -1073,7 +1208,8 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
         langOf(config),
         previousSeq,
         triggerSeq,
-        describePart
+        describePart,
+        { qqMode }
       );
       const hasNewEvents = collected.hasEvents
         || (triggerSeq !== undefined && (previousSeq === undefined || triggerSeq > previousSeq));
@@ -1364,9 +1500,9 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
       // 工作区、一个 agent 身份，逐条解析是白花钱。解析不到就落 NULL（NULL = 未标注 =
       // 全局可见），且解析器绝不抛错（scope.js 的硬约束：记忆写入不该被作用域拖挂）。
       // 闸门与 tools.js 的 autoStamping（2026-10-14 在 :175）同一把：关着就一个字段都不加，老行为不变。
-      const writeScope = config?.scopeEnabled === true
+      const writeScope = qqScopeResult.scope ?? (config?.scopeEnabled === true
         ? resolveSessionScope({ agent: { session } })
-        : null;
+        : null);
       const writes = [];
       for (const entry of entries) {
         // Provenance: the summarizer runs on a real session (turn/end hook), so
@@ -1428,7 +1564,7 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
       const distilledAt = new Date(now()).toISOString();
       const transcript = config?.distillRecords?.enabled === true
         && typeof service.saveDistillRecords === "function"
-        ? collectTranscriptRecords(session, previousSeq, triggerSeq, distilledAt)
+        ? collectTranscriptRecords(session, previousSeq, triggerSeq, distilledAt, { qqMode })
         : null;
       const writeWindow = () => {
         const savedIds = [];
@@ -1651,11 +1787,30 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
         }
       }
       inFlight.delete(session.id);
+      if (!disposed && pendingRuns.has(session.id)) {
+        const pendingEvent = pendingRuns.get(session.id);
+        pendingRuns.delete(session.id);
+        Promise.resolve().then(() => summarize(session, pendingEvent).catch((error) => {
+          if (disposed || error?.name === "AbortError") return;
+          ctx.logger?.warn?.(`dsh-mneme: pending summarization failed: ${String(error)}`);
+        }));
+      }
     }
   }
 
   const unsubscribe = ctx.on("session/event", (session, event) => {
-    if (disposed || event.type !== "turn/end") return;
+    if (disposed) return;
+    const qqEnabled = config?.qqBridgeMemory?.enabled === true;
+    rememberToolCall(session, event);
+    const eventTool = event?.type === "tool/result"
+      ? resolveToolResultName(session, event)
+      : eventToolName(event);
+    const sessionIsQq = qqSessions.has(sessionKey(session)) || isQqBridgeSession(session, [event]);
+    const qqMessageEvent = qqEnabled && (
+      event?.type === "user/message"
+      || (event?.type === "tool/result" && isQqBridgeTool(eventTool))
+    ) && sessionIsQq;
+    if (event.type !== "turn/end" && !(config?.qqBridgeMemory?.captureContinuous === true && qqMessageEvent)) return;
     // Return the summarization promise so awaiters observe the writes; the
     // catch keeps listener dispatch from rejecting. Dispose-initiated aborts
     // and external AbortErrors are silent.
@@ -1672,11 +1827,14 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
       unsubscribe?.();
       for (const timer of deferredRuns.values()) clearTimer(timer);
       deferredRuns.clear();
+      pendingRuns.clear();
       for (const controller of inFlight.values()) controller.abort();
       inFlight.clear();
       lastRunAt.clear();
       lastDistilledSeq.clear();
       parseFailureStreakFallback.clear();
+      pendingToolCalls.clear();
+      qqSessions.clear();
     }
   };
 }

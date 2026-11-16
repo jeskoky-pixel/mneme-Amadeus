@@ -62,6 +62,9 @@
 |---|---|---|---|
 | `scopeEnabled` | `false` | 存储层总开关：**两条写入路径**（工具调用 `memory_save`/`memory_update`，以及机器提炼·会话蒸馏）都自动标注 agent_scope / workspace_scope（标注只贴**新建行**：并入既有行时不重贴，既有行的归属属于它原来被提炼出来的语境），去重键扩展；检索与注入排序按当前会话作用域加权（命中 ×1.25、他 scope ×0.5 保留可见，issue #339 补齐注入通道） | opt-in；关 = 写入不标注、行为与 A1 前逐字节一致 |
 | `strictScope` | `false` | 硬过滤模式（A3）：他 scope 完全不可见、未标注恒可见（fail-closed）；硬过滤先于软加权执行 | 依赖 `scopeEnabled` 打开才有意义；关 = A2 软隔离（他 scope 降权保留可见，检索与注入同权重） |
+| `qqBridgeMemory.enabled` | `false` | QQ Bridge 边界适配总闸：在蒸馏前把 DSH 事件归一化为真实 QQ 入站/已发送出站消息，排除人设、工具参数、等待状态和未发送的 DSH 末尾回答 | opt-in；普通 DSH 会话保持原有蒸馏口径 |
+| `qqBridgeMemory.captureContinuous` | `true` | QQ Bridge 长任务中，真实 QQ 消息到达或确认发送时即可推进有限蒸馏窗口，不必等整次 DSH 任务结束 | 仅在 `qqBridgeMemory.enabled` 开启时生效；失败/歧义发送不推进为已发生的助手发言 |
+| `workspaceScopeRequired` | `false` | 需要工作区边界的适配器采用 fail-closed：当前工作区无法从 session header 或 workspace registry 解析时，不读写全库共享池 | 与 `scopeEnabled`、`strictScope` 一起用于 QQ Bridge；显式 `workspace_scope: "global"` 仍表示有意共享 |
 
 ## 作用域级可逆闸门（issue #471）
 
