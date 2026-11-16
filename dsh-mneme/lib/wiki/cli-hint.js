@@ -13,7 +13,7 @@
 // 而算错的表现正是「又给出一条跑不起来的命令」，与这条 issue 的病因同源。
 //
 // 这条对 hoisted 与 pnpm isolated 两种 linker 都成立：后者的真实路径在
-// `.pnpm/<pkg>/node_modules/@modusensus/dsh-mneme/`，包根照样是它的父目录。
+// `.pnpm/<pkg>/node_modules/@fg-lab/dsh-mneme/`，包根照样是它的父目录。
 //
 // 刻意**只给 `node <entry>` 这一种形态**：`.bin` 的 shim 在 hoisted 布局下位于
 // 包根的 `../../../node_modules/.bin`，isolated 布局下却在 profile 根 —— 猜错就是

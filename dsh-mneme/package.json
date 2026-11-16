@@ -1,7 +1,10 @@
 {
-  "name": "@modusensus/dsh-mneme",
+  "name": "@fg-lab/dsh-mneme",
   "description": "Cross-session memory plugin for DeepSeek Harness with autoDream consolidation: SQLite store, Markdown mirrors, 10 model tools, automatic injection, session summarization, user profile/rules, custom slash commands, vector (semantic) search, and a Web GUI panel",
-  "version": "0.16.0",
+  "version": "0.17.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
   "keywords": [
     "dsh",

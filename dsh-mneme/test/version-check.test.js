@@ -15,7 +15,7 @@ describe('version-check.js', () => {
   // ---- validateRegistryUrl：https + 精确 host 白名单（构造性排除本机/内网）----
   describe('validateRegistryUrl', () => {
     test('白名单内 https 地址通过', () => {
-      assert.equal(validateRegistryUrl('https://registry.npmjs.org/@modusensus%2Fdsh-mneme/latest'), true);
+      assert.equal(validateRegistryUrl('https://registry.npmjs.org/@fg-lab%2Fdsh-mneme/latest'), true);
       assert.equal(validateRegistryUrl('https://registry.npmjs.org/anything'), true);
     });
 

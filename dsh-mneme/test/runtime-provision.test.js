@@ -13,7 +13,7 @@ import { makeEmptyModules, makeSourceModules } from "./helpers/runtime-source.js
 
 test("hostModulesDir：从插件自身位置往上三级就是宿主 node_modules", () => {
   const fake = pathToFileURL(
-    join(tmpdir(), "proj", "node_modules", "@modusensus", "dsh-mneme", "lib", "api.js")
+    join(tmpdir(), "proj", "node_modules", "@fg-lab", "dsh-mneme", "lib", "api.js")
   ).href;
   assert.equal(hostModulesDir(fake), join(tmpdir(), "proj", "node_modules"));
 });

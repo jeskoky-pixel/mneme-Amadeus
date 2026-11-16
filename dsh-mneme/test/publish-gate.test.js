@@ -1,7 +1,7 @@
 // scripts/publish-gate.mjs 的回归测试。
 //
 // 这一步的价值全在「不许假绿」上：原先的 Verify published version 是
-//   echo "Published: $(npm view "@modusensus/dsh-mneme@${V}" version)"
+//   echo "Published: $(npm view "@fg-lab/dsh-mneme@${V}" version)"
 // 命令替换里的失败不让 `set -e` 退出 —— v0.8.16 那次日志里明明 `404 No match found for version
 // 0.8.16`，step 与 job 却都是 success。下面第一条与第三条各自钉住两端：
 //   · 版本已在 registry（幂等跳过路径）→ 立刻通过，不为传播延迟白等；
@@ -174,11 +174,11 @@ test("默认预算：超时 10 分钟 / 间隔 15 秒（覆盖实测 ~4.5 分钟
 test("versionUrl：scoped 包名整体编码，origin 尾斜杠不重复", () => {
   assert.equal(
     versionUrl(PACKAGE_NAME, "0.8.16"),
-    "https://registry.npmjs.org/%40modusensus%2Fdsh-mneme/0.8.16"
+    "https://registry.npmjs.org/%40fg-lab%2Fdsh-mneme/0.8.16"
   );
   assert.equal(
     versionUrl(PACKAGE_NAME, "0.8.16", "https://registry.npmjs.org/"),
-    "https://registry.npmjs.org/%40modusensus%2Fdsh-mneme/0.8.16"
+    "https://registry.npmjs.org/%40fg-lab%2Fdsh-mneme/0.8.16"
   );
 });
 
@@ -268,5 +268,5 @@ test("真进程端到端：不存在的版本 → 退出码 1 且 stderr 指明�
   );
   assert.equal(result.status, 1, `期望非零退出，实际 ${result.status}（stderr: ${result.stderr}）`);
   assert.match(result.stderr, /发布闸门未通过/);
-  assert.match(result.stdout, /等待 @modusensus\/dsh-mneme@0\.0\.0-mneme-gate-test/);
+  assert.match(result.stdout, /等待 @fg-lab\/dsh-mneme@0\.0\.0-mneme-gate-test/);
 });
