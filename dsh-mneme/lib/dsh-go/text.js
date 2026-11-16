@@ -244,8 +244,18 @@ export const FLAG_GROUPS = [
     items: [
       ["scopeEnabled", "按会话作用域标注"],
       ["strictScope", "严格按作用域过滤"],
+      ["workspaceScopeRequired", "强制按工作区隔离"],
       ["scopeState.enabled", "作用域级暂停"],
       ["scopeState.enforce", "暂停后真的不注入"],
+    ],
+  },
+  {
+    key: "qqBridge",
+    label: "QQ 记忆",
+    note: "只把 QQ Bridge 实际收到和发出的消息纳入记忆，并按工作区归属。",
+    items: [
+      ["qqBridgeMemory.enabled", "启用 QQ 真实会话适配"],
+      ["qqBridgeMemory.captureContinuous", "持续采集 QQ 消息"],
     ],
   },
   {
@@ -340,3 +350,4 @@ export function scopeText(memo) {
     parts.push(`工作区 ${memo.workspace_scope}`);
   return parts.length === 0 ? "全局" : parts.join(" · ");
 }
+

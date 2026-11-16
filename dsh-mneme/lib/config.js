@@ -1174,8 +1174,9 @@ export const Config = z.object({
   // QQ Bridge memory adapter (opt-in). The adapter keeps only messages that
   // were received or actually sent through the QQ tools. `captureContinuous`
   // lets a long-running bridge task flush bounded message windows before the
-  // eventual DSH turn/end event. These keys intentionally stay file-config
-  // only for now; ordinary DSH sessions remain byte-compatible by default.
+  // eventual DSH turn/end event. Both keys are exposed through feature_flags
+  // so the DSH settings panel can opt the adapter in without editing files;
+  // ordinary DSH sessions remain byte-compatible by default.
   qqBridgeMemory: z.object({
     enabled: z.boolean().default(false),
     captureContinuous: z.boolean().default(true)
@@ -1183,7 +1184,8 @@ export const Config = z.object({
 
   // Fail closed for adapters that require a proven workspace. When enabled,
   // an unresolved QQ workspace is skipped rather than written to the global
-  // pool. Use together with scopeEnabled and strictScope.
+  // pool. It is exposed through feature_flags for the DSH settings panel;
+  // use together with scopeEnabled and strictScope.
   workspaceScopeRequired: z.boolean().default(false),
 
   // scopeState（issue #471）：政策轴——作用域级可逆闸门。与上面两个键是**两条不同
@@ -1453,3 +1455,4 @@ export function injectChildEnabled(cfg, key) {
   }
   return cfg?.[key] === true;
 }
+

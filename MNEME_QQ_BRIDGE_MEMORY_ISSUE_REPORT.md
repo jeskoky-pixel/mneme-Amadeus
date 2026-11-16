@@ -87,6 +87,15 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 
 详细说明见 fork 内的 [`dsh-mneme/docs/QQ-BRIDGE.md`](dsh-mneme/docs/QQ-BRIDGE.md)。
 
+### DSH 设置 GUI
+
+本轮同步修改的是 DSH 插件自己的原生设置面板，不是 Mneme 的 Web UI，也没有新增一套配置存储：
+
+- “作用域”分组新增“强制按工作区隔离”；
+- 新增“QQ 记忆”分组，包含“启用 QQ 真实会话适配”和“持续采集 QQ 消息”；
+- 三个开关都复用现有 `/features`、`feature_flags` 和待重启提示，改动后重启 DSH 使启动配置生效；
+- 面板只增加这三个新功能入口，普通 DSH 的既有设置和 Web UI 不改。
+
 ## 巩固边界与已知限制
 
 `runDream` 在 required 模式下只使用最近带标签工作区的候选，并且不会把两个带标签工作区合并到同一轮；为避免旧 scheduler 没有工作区载体而越界，`runSleep` 在 required 模式下安全跳过。当前 dream 的触发阈值仍按全库数量计算，A/B 工作区交替写入时最近工作区优先，另一侧可能延迟。这些是明确的安全降级，不是会话级隔离缺失；后续可把 scheduler 改成按 workspace 分桶的队列。
@@ -97,7 +106,7 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 
 在独立 fork checkout 中执行：
 
-- 全量：`node --test test/*.test.js` → **3603 tests，3602 pass，0 fail，1 skipped**；
+- 全量：`node --test test/*.test.js` → **3604 tests，3603 pass，0 fail，1 skipped**；
 - QQ 归一化与作用域边界：10/10 pass；
 - dream narrative 工作区隔离：10/10 pass；
 - summarize 全文件：98/98 pass；
@@ -112,3 +121,4 @@ Draft PR：[Add QQ Bridge memory normalization and workspace isolation](https://
 2. 为现有记忆生成只读分类报告，再人工决定归档配置复读和运行噪声。
 3. 若需要完整巩固隔离，把 dream trigger/baseline 和 sleep phases 改为 workspace 队列/载体。
 4. 继续跟进 Mneme upstream，在适配层保持小而清晰的改动，避免把 QQ 专用判断散落到核心存储代码。
+
