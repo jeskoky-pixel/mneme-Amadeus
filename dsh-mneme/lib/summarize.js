@@ -937,6 +937,53 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
       ctx.logger?.warn?.(`dsh-mneme: parse failure streak clear failed: ${String(error)}`);
     }
   }
+  // DSH tool/result events carry only the callId in their source metadata. Keep
+  // the preceding tool/call name long enough for continuous QQ capture to tell
+  // a real QQ result from an unrelated tool result. The map is per session so
+  // identical call IDs from different sessions cannot cross the workspace or
+  // conversation boundary. Results remove their entry; the cap protects a
+  // session with abandoned calls from growing without bound.
+  const pendingToolCalls = new Map();
+  const qqSessions = new Set();
+  const MAX_PENDING_TOOL_CALLS = 256;
+  const sessionKey = (session) => session?.id ?? session;
+  const eventToolName = (event) => event?.data?.name ?? event?.data?.toolName
+    ?? event?.data?.message?.source?.toolName ?? event?.data?.message?.source?.name;
+  const eventCallId = (event) => {
+    const data = event?.data;
+    const value = data?.callId ?? data?.call_id ?? data?.toolCallId ?? data?.tool_call_id
+      ?? data?.message?.callId ?? data?.message?.toolCallId ?? data?.message?.source?.callId;
+    return value == null ? "" : String(value);
+  };
+  const rememberToolCall = (session, event) => {
+    if (event?.type !== "tool/call") return;
+    const name = eventToolName(event);
+    const callId = eventCallId(event);
+    const key = sessionKey(session);
+    if (isQqBridgeTool(name)) qqSessions.add(key);
+    if (!name || !callId) return;
+    let calls = pendingToolCalls.get(key);
+    if (!calls) {
+      calls = new Map();
+      pendingToolCalls.set(key, calls);
+    }
+    calls.delete(callId);
+    calls.set(callId, String(name));
+    while (calls.size > MAX_PENDING_TOOL_CALLS) calls.delete(calls.keys().next().value);
+  };
+  const resolveToolResultName = (session, event) => {
+    const direct = eventToolName(event);
+    const callId = eventCallId(event);
+    const calls = pendingToolCalls.get(sessionKey(session));
+    const remembered = callId && calls ? calls.get(callId) : undefined;
+    if (callId && calls) {
+      calls.delete(callId);
+      if (!calls.size) pendingToolCalls.delete(sessionKey(session));
+    }
+    const name = direct ?? remembered;
+    if (isQqBridgeTool(name)) qqSessions.add(sessionKey(session));
+    return name;
+  };
   let disposed = false;
 
   /** 写一条 autoSummarize 的 LLM 审计行（审计失败绝不阻塞蒸馏本身）。 */
@@ -1754,12 +1801,15 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
   const unsubscribe = ctx.on("session/event", (session, event) => {
     if (disposed) return;
     const qqEnabled = config?.qqBridgeMemory?.enabled === true;
-    const eventTool = event?.data?.name ?? event?.data?.toolName
-      ?? event?.data?.message?.source?.toolName ?? event?.data?.message?.source?.name;
+    rememberToolCall(session, event);
+    const eventTool = event?.type === "tool/result"
+      ? resolveToolResultName(session, event)
+      : eventToolName(event);
+    const sessionIsQq = qqSessions.has(sessionKey(session)) || isQqBridgeSession(session, [event]);
     const qqMessageEvent = qqEnabled && (
       event?.type === "user/message"
       || (event?.type === "tool/result" && isQqBridgeTool(eventTool))
-    ) && isQqBridgeSession(session, [event]);
+    ) && sessionIsQq;
     if (event.type !== "turn/end" && !(config?.qqBridgeMemory?.captureContinuous === true && qqMessageEvent)) return;
     // Return the summarization promise so awaiters observe the writes; the
     // catch keeps listener dispatch from rejecting. Dispose-initiated aborts
@@ -1783,6 +1833,8 @@ export function createSummarizer(ctx, service, config, deps = {}, sessionGate = 
       lastRunAt.clear();
       lastDistilledSeq.clear();
       parseFailureStreakFallback.clear();
+      pendingToolCalls.clear();
+      qqSessions.clear();
     }
   };
 }

@@ -133,6 +133,29 @@ function toolRoleResultEvent(text, isError, seq) {
   };
 }
 
+// DSH's normal tool/result pair: the result only carries the callId, while the
+// tool name is present on the preceding tool/call event.
+function normalToolCallEvent(name, callId, seq, argumentsValue = {}) {
+  return {
+    seq,
+    type: "tool/call",
+    data: { name, callId, arguments: argumentsValue }
+  };
+}
+
+function normalToolResultEvent(callId, payload, seq) {
+  return {
+    seq,
+    type: "tool/result",
+    data: {
+      message: {
+        source: { kind: "tool", callId },
+        content: [{ type: "text", text: JSON.stringify(payload) }]
+      }
+    }
+  };
+}
+
 function codeDispatchEvent(text, isError, seq) {
   return {
     seq,
@@ -260,6 +283,54 @@ test("continuous QQ capture replays the newest event after an in-flight distilla
   await first;
   for (let i = 0; i < 8 && calls.length < 2; i++) await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.length, 2, "the event that arrived during the first run must trigger a replay");
+  summarizer.dispose();
+});
+
+test("continuous QQ capture resolves a normal inbound tool result through callId", async () => {
+  const sessionEvents = [
+    normalToolCallEvent("qq_wait_for_messages", "wait-1", 1, { timeoutMs: 180000 }),
+    normalToolResultEvent("wait-1", {
+      messages: [{ messageId: "m1", sender: "Alice", userId: "42", text: "请记住这个决定" }]
+    }, 2)
+  ];
+  const { events: listeners, calls, summarizer } = setup({
+    qqBridgeMemory: { enabled: true, captureContinuous: true },
+    distillRateLimitIntervalMs: 0
+  });
+  const handler = listeners.find((entry) => entry.name === "session/event").fn;
+  const session = {
+    id: "qq-callid-inbound",
+    header: { agentPreset: "qq-chat-v3" },
+    requestHeader: () => ({ config: testConfig({ provider: "deepseek", model: "deepseek-chat" }) }),
+    snapshotEvents: () => sessionEvents
+  };
+  await handler(session, sessionEvents[0]);
+  await handler(session, sessionEvents[1]);
+  assert.equal(calls.length, 1, "a normal QQ wait result must trigger continuous distillation");
+  summarizer.dispose();
+});
+
+test("continuous QQ capture resolves a normal outbound tool result through callId", async () => {
+  const sessionEvents = [
+    normalToolCallEvent("qq_send_message", "send-1", 1, { message: "已经处理好了" }),
+    normalToolResultEvent("send-1", { sent: 1 }, 2)
+  ];
+  const { events: listeners, calls, summarizer } = setup({
+    qqBridgeMemory: { enabled: true, captureContinuous: true },
+    distillRateLimitIntervalMs: 0
+  });
+  const handler = listeners.find((entry) => entry.name === "session/event").fn;
+  const session = {
+    id: "qq-callid-outbound",
+    header: { agentPreset: "qq-chat-v3" },
+    requestHeader: () => ({ config: testConfig({ provider: "deepseek", model: "deepseek-chat" }) }),
+    snapshotEvents: () => sessionEvents
+  };
+  await handler(session, sessionEvents[0]);
+  await handler(session, sessionEvents[1]);
+  assert.equal(calls.length, 1, "a normal QQ send result must trigger continuous distillation");
+  const transcript = JSON.stringify(calls[0].messages);
+  assert.match(transcript, /已经处理好了/);
   summarizer.dispose();
 });
 

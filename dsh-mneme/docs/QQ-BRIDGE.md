@@ -32,6 +32,12 @@ The adapter reads actual QQ messages from the `【本次消息快照】` embedde
 
 Assistant text enters memory only after `qq_send_message`, `qq_send_group_message`, `qq_send_private_message`, `qq_reply`, or `qq_send_burst` returns an explicit `sent` count or identifiable sent records. A partial result contributes only the explicitly confirmed prefix; an HTTP error whose internal `error.sent` count is not exposed is discarded conservatively. DSH final assistant text, internal reasoning, tool arguments, wait/timeout status, and memory recall output are excluded. Non-text sends such as poke, sticker, and voice are intentionally not converted into text memories.
 
+Continuous capture handles DSH's normal event pair: the preceding `tool/call` carries the
+tool name, while `tool/result` carries only `kind: "tool"` and `callId`. The adapter keeps a
+per-session `callId → tool name` association until the result arrives, then consumes it. A
+matched QQ wait/read/send result can trigger incremental distillation without waiting for
+`turn/end`; an unmatched result remains ineligible.
+
 ## Scope and consolidation
 
 The workspace label is normalised for Windows and POSIX spelling before it is written. Required workspace filtering applies to search, injection, tool list/get/update/delete/forget/archive/pin visibility, distillation writes, and the bounded dream candidate/summary/narrative pools. Legacy rows with no workspace label are treated as intentional global rows; newly captured QQ rows always carry the current workspace label. Dream candidate selection is fail-closed and latched to the latest stamped workspace, so one run never combines rows from two labelled workspaces. Its scheduler threshold still counts the whole store, and alternating workspaces may delay one side; a later per-workspace queue can remove that limitation. Sleep is skipped in required mode because its legacy scheduler has no workspace carrier; this is a deliberate fail-closed limitation for a later scoped sleep scheduler.
