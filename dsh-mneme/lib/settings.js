@@ -227,6 +227,9 @@ const FEATURE_FLAG_BOOLEANS = [
   // Issue #17（v0.8.0 A3）：strictScope 硬过滤——他 scope 完全不可见（关闭时
   // 为 A2 软隔离：降权保留可见）。
   "strictScope",
+  // Mneme-Amadeus：QQ Bridge 记忆适配需要一个可证明的工作区边界。开启后，
+  // 无法解析工作区的 QQ 事件会被拒绝写入全局池；它是顶层键，面板可启停。
+  "workspaceScopeRequired",
   // Issue #471：政策轴——作用域级可逆闸门（scopeState）。与上面两个键是两条不同的
   // 轴：那两个管「这条记忆属于谁」（事实轴），这两个管「这个作用域现在通不通」
   // （政策轴，按作用域整体按下、跨会话存续、松开即恢复）。两级语义同
@@ -318,7 +321,11 @@ const FEATURE_FLAG_BOOLEANS = [
   // config.js 那三个键的注释里。kbEnabled 本车道只登记、不接线（B 线做子系统）。
   "chorographyAutoRefresh",
   "chorographyT1FromPanel",
-  "kbEnabled"
+  "kbEnabled",
+  // Mneme-Amadeus：QQ Bridge 真实会话适配。enabled 控制归一化入口，
+  // captureContinuous 控制长时间运行的任务是否在收到真实消息时持续刷新蒸馏窗口。
+  "qqBridgeMemory.enabled",
+  "qqBridgeMemory.captureContinuous"
 ];
 // 整数开关的闭区间，与 config.js 里 z.natural().min().max() 对齐。
 const FEATURE_FLAG_INT_RANGES = {

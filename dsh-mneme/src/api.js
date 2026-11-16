@@ -318,6 +318,10 @@ export function createApi(ctx, service, settings, commands, embedder, semantic =
     // 同上（effective 静默缺键、面板读不到也 PUT 不进）。
     "scopeState.enabled": ["scopeState", "enabled"],
     "scopeState.enforce": ["scopeState", "enforce"],
+    // Mneme-Amadeus：QQ Bridge 适配开关。kv 中按点号平铺，运行时从
+    // qqBridgeMemory 对象读取；漏登记会让 /features 静默少键，面板无法显示。
+    "qqBridgeMemory.enabled": ["qqBridgeMemory", "enabled"],
+    "qqBridgeMemory.captureContinuous": ["qqBridgeMemory", "captureContinuous"],
     // #275 容量预警：三个阈值都是嵌套子字段（两个整数走 INT_RANGES、一个浮点走
     // NUMBER_RANGES），漏登记的后果同上——effective 静默缺键、面板读不到也 PUT 不进。
     "capacityWarning.dbSizeWarnMb": ["capacityWarning", "dbSizeWarnMb"],

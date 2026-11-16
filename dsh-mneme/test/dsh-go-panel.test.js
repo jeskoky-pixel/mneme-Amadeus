@@ -171,6 +171,19 @@ test("功能开关铺在设置页正文里，不是子页面（#dsh-go 对齐电
   assert.ok(!flat.includes('"k":"flags"'), "还有指向 flags 子页面的入口");
 });
 
+test("DSH 设置面板暴露工作区隔离与 QQ Bridge 记忆开关", () => {
+  const scope = JSON.stringify(buildView(state({ flagGroup: "scope" })));
+  assert.ok(scope.includes("强制按工作区隔离"));
+  assert.ok(scope.includes('"bind":"data.flags.workspaceScopeRequired"'));
+
+  const qq = JSON.stringify(buildView(state({ flagGroup: "qqBridge" })));
+  assert.ok(qq.includes("QQ 记忆"));
+  assert.ok(qq.includes("启用 QQ 真实会话适配"));
+  assert.ok(qq.includes("持续采集 QQ 消息"));
+  assert.ok(qq.includes('"bind":"data.flags.qqBridgeMemory.enabled"'));
+  assert.ok(qq.includes('"bind":"data.flags.qqBridgeMemory.captureContinuous"'));
+});
+
 function walk(node, out = []) {
   if (node === null || typeof node !== "object") return out;
   if (Array.isArray(node)) {

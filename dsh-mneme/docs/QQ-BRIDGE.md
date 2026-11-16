@@ -18,6 +18,12 @@ Enable the existing scope system together with the opt-in adapter in the Mneme c
 }
 ```
 
+The same three controls are available in the DSH settings GUI under **功能开关**:
+`作用域 → 强制按工作区隔离`, `QQ 记忆 → 启用 QQ 真实会话适配`, and
+`QQ 记忆 → 持续采集 QQ 消息`. The panel writes through Mneme's existing
+`/features` settings path; restart DSH after changing them so the startup config
+and the live adapter agree.
+
 `workspaceScopeRequired` is fail-closed. If the session header or workspace registry does not provide a workspace, a QQ distillation window is skipped and its cursor is not advanced. This prevents an unresolved QQ task from silently reading or writing the global pool. Explicit `workspace_scope: "global"` remains an intentional shared write.
 
 ## What enters memory

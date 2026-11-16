@@ -882,7 +882,9 @@ test("GET /api/dsh-mneme/features returns empty overrides and effective config d
   // #718 注入前判定判官专用路由新增两个键：preInjectGateProvider /
   // preInjectGateModel（顶层字符串键，走 FEATURE_FLAG_STRINGS 表，成对生效）
   // = +2，故 138 + 2 = 140。
-  assert.equal(Object.keys(data.effective).length, 140);
+  // Mneme-Amadeus adds the workspace fail-closed toggle and two QQ Bridge
+  // nested toggles exposed by the DSH settings panel.
+  assert.equal(Object.keys(data.effective).length, 143);
   // #718 判官路由默认值单独钉：默认空串 = 回落 agentDefaultModel（entity
   // 同款成对语义，计数锁钉不住空串缺省被翻转）。
   assert.equal(data.effective.preInjectGateProvider, "");
@@ -923,6 +925,9 @@ test("GET /api/dsh-mneme/features returns empty overrides and effective config d
   // issue #471：政策轴作用域级可逆闸门，两级开关默认全关（默认路径零行为变化）
   assert.equal(data.effective["scopeState.enabled"], false);
   assert.equal(data.effective["scopeState.enforce"], false);
+  assert.equal(data.effective.workspaceScopeRequired, false);
+  assert.equal(data.effective["qqBridgeMemory.enabled"], false);
+  assert.equal(data.effective["qqBridgeMemory.captureContinuous"], true);
   assert.equal(data.effective.dreamMinIntervalMinutes, 0);
   assert.equal(data.effective.autoDreamFailureBackoff, false);
   assert.equal(data.effective.dreamMaxTokens, 131072);
