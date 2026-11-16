@@ -11,7 +11,7 @@ import { STR } from "../src/lang.js";
 const GOOD = { type: "project", title: "发布只在包目录内", content: "根目录发过坏包。" };
 // 报告现场的原样形状：自造中文分类 + 多带 id/source 键
 const BOGUS = [
-  { id: 1, type: "环境/版本", content: "本地安装的 @modusensus/dsh-mneme 版本为 0.9.4", source: "工具结果：版本确认" },
+  { id: 1, type: "环境/版本", content: "本地安装的 @fg-lab/dsh-mneme 版本为 0.9.4", source: "工具结果：版本确认" },
   { id: "user_intent", type: "用户需求", content: "希望插件不再重复询问", source: "用户输入" }
 ];
 

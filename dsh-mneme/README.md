@@ -8,8 +8,8 @@ $ cat ~/.dsh/memory/preferences.md
 ```
 
 <p align="center">
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/npm/v/@modusensus/dsh-mneme?style=flat-square&label=npm&labelColor=B03A2E&color=EFE7D8&logoColor=1C1C1C"><img src="https://img.shields.io/npm/v/@modusensus/dsh-mneme?style=flat-square&label=npm&labelColor=B03A2E&color=111111&logoColor=FFFFFF" alt="npm version"></picture>
-<picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/npm/d18m/@modusensus/dsh-mneme?style=flat-square&label=downloads&labelColor=B03A2E&color=EFE7D8&logoColor=1C1C1C"><img src="https://img.shields.io/npm/d18m/@modusensus/dsh-mneme?style=flat-square&label=downloads&labelColor=B03A2E&color=111111&logoColor=FFFFFF" alt="npm downloads"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/npm/v/@fg-lab/dsh-mneme?style=flat-square&label=npm&labelColor=B03A2E&color=EFE7D8&logoColor=1C1C1C"><img src="https://img.shields.io/npm/v/@fg-lab/dsh-mneme?style=flat-square&label=npm&labelColor=B03A2E&color=111111&logoColor=FFFFFF" alt="npm version"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/npm/d18m/@fg-lab/dsh-mneme?style=flat-square&label=downloads&labelColor=B03A2E&color=EFE7D8&logoColor=1C1C1C"><img src="https://img.shields.io/npm/d18m/@fg-lab/dsh-mneme?style=flat-square&label=downloads&labelColor=B03A2E&color=111111&logoColor=FFFFFF" alt="npm downloads"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/slow-stack/mneme/ci.yml?style=flat-square&label=CI&labelColor=B03A2E&color=EFE7D8"><img src="https://img.shields.io/github/actions/workflow/status/slow-stack/mneme/ci.yml?style=flat-square&label=CI&labelColor=B03A2E&color=111111" alt="CI"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/tests-3590%20total-EFE7D8?style=flat-square"><img src="https://img.shields.io/badge/tests-3590%20total-111111?style=flat-square" alt="tests"></picture>
 <picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-MIT-EFE7D8?style=flat-square&label=license&labelColor=B03A2E&logoColor=1C1C1C"><img src="https://img.shields.io/badge/license-MIT-111111?style=flat-square&label=license&labelColor=B03A2E&logoColor=FFFFFF" alt="license"></picture>
@@ -39,7 +39,7 @@ $ cat ~/.dsh/memory/preferences.md
 
 ```bash
 # 30 秒上手
-dsh plugin --profile web add @modusensus/dsh-mneme
+dsh plugin --profile web add @fg-lab/dsh-mneme@0.17.1
 dsh web
 ```
 
@@ -310,7 +310,7 @@ dsh-mneme 是一个 **bundle**（声明了 `dsh.bundle` manifest），安装即�
 
 ```bash
 # 1. 安装插件（自动注册 bundle 层）
-dsh plugin --profile web add @modusensus/dsh-mneme
+dsh plugin --profile web add @fg-lab/dsh-mneme
 
 # 2. 重启
 dsh web
@@ -321,8 +321,8 @@ dsh web
 #### 方式二：从源码安装（本地目录）
 
 ```bash
-git clone https://github.com/slow-stack/mneme.git
-cd mneme/dsh-mneme
+git clone https://github.com/jeskoky-pixel/mneme-Amadeus.git
+cd mneme-Amadeus/dsh-mneme
 dsh plugin --profile web add "$(pwd)"
 dsh web
 ```
@@ -334,15 +334,15 @@ dsh web
 本仓库是**单仓多包**：仓库根那份 `package.json` 是**仓库壳**（`private`、不带 `dsh` 字段），插件本体在 `dsh-mneme/`。所以 Git 地址必须带 `#path:` 指到子目录：
 
 ```bash
-dsh plugin --profile web add 'git+https://github.com/slow-stack/mneme.git#path:/dsh-mneme'
+dsh plugin --profile web add 'git+https://github.com/jeskoky-pixel/mneme-Amadeus.git#path:/dsh-mneme'
 dsh web
 ```
 
 | 写法 | 结果 |
 |------|------|
-| `git+https://github.com/slow-stack/mneme.git#path:/dsh-mneme` | ✅ 装出 `@modusensus/dsh-mneme`（实测 0.9.0，38 个包） |
-| `https://github.com/slow-stack/mneme#path:/dsh-mneme` | ✅ 同上；lockfile 会归一成 `github:slow-stack/mneme#path:/dsh-mneme` |
-| `git+https://github.com/slow-stack/mneme.git` | ❌ 装到仓库根那份壳（`0.0.0`、无 `dsh` 字段），宿主不认它是插件 |
+| `git+https://github.com/jeskoky-pixel/mneme-Amadeus.git#path:/dsh-mneme` | ✅ 装出 `@fg-lab/dsh-mneme` |
+| `https://github.com/jeskoky-pixel/mneme-Amadeus#path:/dsh-mneme` | ✅ 同上；lockfile 会归一成 `github:jeskoky-pixel/mneme-Amadeus#path:/dsh-mneme` |
+| `git+https://github.com/jeskoky-pixel/mneme-Amadeus.git` | ❌ 装到仓库根那份壳（`0.0.0`、无 `dsh` 字段），宿主不认它是插件 |
 
 `#path:` 是 pnpm 的 git 参数（`parseGitParams` 里按 `path:` 前缀解析），**不是**本仓库自定义的语法；pnpm 官方文档没写这一条，所以这里给出实测结果。
 
@@ -350,8 +350,8 @@ dsh web
 
 ```bash
 cd dsh-mneme
-npm pack                       # 产出 modusensus-dsh-mneme-<版本>.tgz
-dsh plugin --profile web add "C:/path/to/modusensus-dsh-mneme-0.9.0.tgz"
+npm pack                       # 产出 fg-lab-dsh-mneme-<版本>.tgz
+dsh plugin --profile web add "C:/path/to/fg-lab-dsh-mneme-0.9.0.tgz"
 ```
 
 > 必须用 `npm pack`，别用 `pnpm pack`：`bin/cli.mjs` 在工作区里是 CRLF，pnpm 会以 `ERR_PNPM_BIN_CRLF` 直接失败。
@@ -362,7 +362,7 @@ dsh plugin --profile web add "C:/path/to/modusensus-dsh-mneme-0.9.0.tgz"
 
 ```yaml
 - id: dsh-mneme
-  name: '@modusensus/dsh-mneme'
+  name: '@fg-lab/dsh-mneme'
   config:
     memoryDir: ~/.dsh/memory
     language: zh
@@ -386,8 +386,8 @@ dsh plugin --profile web add "C:/path/to/modusensus-dsh-mneme-0.9.0.tgz"
 
 ```bash
 # --profile 后面写你当初安装它时用的那个名字，默认是 web
-dsh plugin --profile web remove @modusensus/dsh-mneme
-dsh plugin --profile web add @modusensus/dsh-mneme
+dsh plugin --profile web remove @fg-lab/dsh-mneme
+dsh plugin --profile web add @fg-lab/dsh-mneme
 dsh web
 ```
 
@@ -636,7 +636,7 @@ curl -s -X POST http://127.0.0.1:8790/memories \
 插件自带零依赖 CLI（随 npm 包一起发布）：
 
 ```bash
-npm i -g @modusensus/dsh-mneme
+npm i -g @fg-lab/dsh-mneme
 dsh-mneme --help
 ```
 
@@ -708,7 +708,7 @@ Claude Code 挂载示例（项目根 `.mcp.json`；token 在面板「设置 → 
 }
 ```
 
-未全局安装 npm 包时，把 `command` 换成 `npx`、加 `args: ["-p", "@modusensus/dsh-mneme", "dsh-mneme-mcp"]` 即可。
+未全局安装 npm 包时，把 `command` 换成 `npx`、加 `args: ["-p", "@fg-lab/dsh-mneme", "dsh-mneme-mcp"]` 即可。
 
 ## 社区适配器
 

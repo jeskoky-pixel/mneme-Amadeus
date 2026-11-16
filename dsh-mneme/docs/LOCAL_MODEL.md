@@ -84,7 +84,7 @@ rm -rf ~/.dsh/mneme/models/hub/models--Xenova--bge-small-zh-v1.5
 走 ③ 时体积是 **win32-x64 实测约 33 个包、2142 个文件、数百 MB**（各平台不同，故不写死数值）——比①少，因为清单剔除了 `onnxruntime-web`（127.7MB，占全量三分之一）：transformers 的 Node 构建从不 import 它（把一个空的 `onnxruntime-web` 打桩进去，嵌入结果逐字节相同），风险由 `verify` 的真实推理兜底。清单本身**平台无关**（数据源是 `package-lock.json` 里所有平台的条目），下载时按各包的 `os`/`cpu` 过滤，所以 win32 / darwin / linux × x64 / arm64 都被覆盖 —— 不需要谁在某个系统上先跑一次生成脚本。
 
 ```bash
-# 在插件目录下运行（例如 node_modules/@modusensus/dsh-mneme）
+# 在插件目录下运行（例如 node_modules/@fg-lab/dsh-mneme）
 
 # 1) 看状态：在哪、来源、结构完不完整（不加载模型，秒回）
 node scripts/mneme-runtime.mjs status
@@ -148,7 +148,7 @@ node "<插件目录>/scripts/mneme-runtime.mjs" adopt --from /tmp/mneme-fetch/no
 
 ```yaml
 - id: dsh-mneme
-  name: '@modusensus/dsh-mneme'
+  name: '@fg-lab/dsh-mneme'
   config:
     # ── Embedding ──────────────────────────────
     embedProvider: local        # local | ollama | openai（默认 openai，保持 v0.1 行为）

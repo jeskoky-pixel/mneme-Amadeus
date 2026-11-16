@@ -648,7 +648,7 @@ export function mountDshGoPanel(ctx, options = {}) {
       const info = await call("/info").catch(() => ({}));
       Object.assign(payload, {
         helpKv: [
-          { label: "插件", value: `@modusensus/dsh-mneme ${String(info?.version ?? "—")}` },
+          { label: "插件", value: `@fg-lab/dsh-mneme ${String(info?.version ?? "—")}` },
           { label: "记忆库", value: "本机 SQLite（与本机 Web 面板同一份，不跨设备同步）" },
           { label: "面板", value: "dsh-go 原生面板" },
         ],

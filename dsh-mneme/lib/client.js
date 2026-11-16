@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-  id: "@modusensus/dsh-mneme",
+  id: "@fg-lab/dsh-mneme",
   factory: (require) => {
     var module = { exports: {} };
     var exports = module.exports;
@@ -342,7 +342,7 @@ window.__ModuleLoader__.load({
         "wiki.empty.generating": "生成中…",
         "wiki.empty.pathPlaceholder": "仓库目录的绝对路径，例如 D:\\code\\my-repo",
         "wiki.empty.cliSummary": "在命令行里生成（可选）",
-        "wiki.empty.cliCmd": "node \"<profile>/node_modules/@modusensus/dsh-mneme/bin/dsh-mneme-choro.mjs\" \"<仓库路径>\" --apply",
+        "wiki.empty.cliCmd": "node \"<profile>/node_modules/@fg-lab/dsh-mneme/bin/dsh-mneme-choro.mjs\" \"<仓库路径>\" --apply",
         "wiki.empty.cliHint": "命令收的是一个路径参数，不必先 cd 进仓库；<profile> 指 DSH 的配置目录。",
         "wiki.flag.autoRefresh": "自动更新",
         "wiki.flag.t1FromPanel": "面板可发起 T1",
@@ -794,7 +794,7 @@ window.__ModuleLoader__.load({
         "memory.settings.extapi.rotatedRestart": "已重新生成，重启 DSH 后生效（在此之前旧 Token 仍然有效）",
         "memory.settings.serve.title": "独立服务 dsh-mneme-serve",
         "memory.settings.serve.desc": "不启动 DSH 也能以 HTTP 方式访问同一份记忆库（无 LLM 数据面）。",
-        "memory.settings.serve.cmd": "npx -p @modusensus/dsh-mneme dsh-mneme-serve --memory-dir <记忆库目录> --port <端口>",
+        "memory.settings.serve.cmd": "npx -p @fg-lab/dsh-mneme dsh-mneme-serve --memory-dir <记忆库目录> --port <端口>",
         "memory.settings.serve.copy": "复制",
         "memory.settings.serve.copied": "已复制",
         "memory.settings.serve.hint": "与「外部访问 API」同源：同一套路由与鉴权，指向同一记忆库目录时，调用方应使用面板这张令牌（通常有效，非承诺）。两者默认抢同一端口，二选一或用 --port 错开。",
@@ -812,7 +812,7 @@ window.__ModuleLoader__.load({
         "memory.settings.configKeys.show": "展开清单",
         "memory.settings.configKeys.hide": "收起清单",
         "memory.settings.configKeys.loadFailed": "没能取到这份清单（接口暂时不可用）——这不等于「没有只能改文件的键」。",
-        "memory.settings.mcp.hint": "数据面走「外部访问 API」（默认 127.0.0.1:8790，Bearer），token 就是上面那张；可用 DSH_MNEME_URL / DSH_MNEME_TOKEN 环境变量或 ~/.dsh-mneme/cli.json 覆盖。command 需在 PATH 上（随 @modusensus/dsh-mneme 安装自带）。",
+        "memory.settings.mcp.hint": "数据面走「外部访问 API」（默认 127.0.0.1:8790，Bearer），token 就是上面那张；可用 DSH_MNEME_URL / DSH_MNEME_TOKEN 环境变量或 ~/.dsh-mneme/cli.json 覆盖。command 需在 PATH 上（随 @fg-lab/dsh-mneme 安装自带）。",
         "memory.settings.extapi.savedHint": "已保存，重启 DSH 后生效",
         "memory.settings.extapi.invalidPort": "端口需为 1-65535 的数字",
         "memory.tab.rejected_solution": "被否决方案",
@@ -1546,7 +1546,7 @@ window.__ModuleLoader__.load({
         "wiki.empty.generating": "Generating…",
         "wiki.empty.pathPlaceholder": "Absolute path of the repository, e.g. D:\\code\\my-repo",
         "wiki.empty.cliSummary": "Or generate from a terminal (optional)",
-        "wiki.empty.cliCmd": "node \"<profile>/node_modules/@modusensus/dsh-mneme/bin/dsh-mneme-choro.mjs\" \"<repo-path>\" --apply",
+        "wiki.empty.cliCmd": "node \"<profile>/node_modules/@fg-lab/dsh-mneme/bin/dsh-mneme-choro.mjs\" \"<repo-path>\" --apply",
         "wiki.empty.cliHint": "The command takes the path as an argument — there is no need to cd into the repository first. <profile> is the DSH profile directory.",
         "wiki.flag.autoRefresh": "Auto-refresh",
         "wiki.flag.t1FromPanel": "Allow T1 from panel",
@@ -1985,7 +1985,7 @@ window.__ModuleLoader__.load({
         "memory.settings.extapi.rotatedRestart": "New token issued. Takes effect after restarting DSH (the old one still works until then)",
         "memory.settings.serve.title": "Standalone service: dsh-mneme-serve",
         "memory.settings.serve.desc": "Reach the same memory library over HTTP without starting DSH (no LLM data plane).",
-        "memory.settings.serve.cmd": "npx -p @modusensus/dsh-mneme dsh-mneme-serve --memory-dir <memory-dir> --port <port>",
+        "memory.settings.serve.cmd": "npx -p @fg-lab/dsh-mneme dsh-mneme-serve --memory-dir <memory-dir> --port <port>",
         "memory.settings.serve.copy": "Copy",
         "memory.settings.serve.copied": "Copied",
         "memory.settings.serve.hint": "Shares routes and auth with the external API: when pointing at the same memory directory, callers should use the panel's token (expected to work, not guaranteed). Both default to the same port — enable one or offset with --port.",
@@ -2003,7 +2003,7 @@ window.__ModuleLoader__.load({
         "memory.settings.configKeys.show": "Show the list",
         "memory.settings.configKeys.hide": "Hide the list",
         "memory.settings.configKeys.loadFailed": "Couldn't load this list (endpoint unavailable) — that is not the same as \"no file-only keys\".",
-        "memory.settings.mcp.hint": "Data plane is the external API (default 127.0.0.1:8790, Bearer) — the token is the one above; override with DSH_MNEME_URL / DSH_MNEME_TOKEN env vars or ~/.dsh-mneme/cli.json. The command must be on PATH (installed with @modusensus/dsh-mneme).",
+        "memory.settings.mcp.hint": "Data plane is the external API (default 127.0.0.1:8790, Bearer) — the token is the one above; override with DSH_MNEME_URL / DSH_MNEME_TOKEN env vars or ~/.dsh-mneme/cli.json. The command must be on PATH (installed with @fg-lab/dsh-mneme).",
         "memory.settings.extapi.savedHint": "Saved. Takes effect after restarting DSH",
         "memory.settings.extapi.invalidPort": "Port must be a number between 1 and 65535",
         "memory.tab.rejected_solution": "Rejected solutions",
@@ -2735,7 +2735,7 @@ window.__ModuleLoader__.load({
     // --dsw-font-* scale, so the page reads as a first-party view beside
     // Chat / Trajectory (flat layer-1 canvas, hairline column separators,
     // text-turns-brand-blue active states — no boxed panels).
-    const CSS_TAG = "@modusensus/dsh-mneme/drawer.css";
+    const CSS_TAG = "@fg-lab/dsh-mneme/drawer.css";
     const css = [
       // --- explorer shell: container queries let the toolbar adapt to the
       // better-sidebar workbench pane (~500px) as well as the 1240px sheet ---
@@ -3242,7 +3242,7 @@ window.__ModuleLoader__.load({
       ".mneme-topentry-native .mneme-topentry-label{white-space:nowrap}",
       "html[data-windows-titlebar] .mneme-topentry .mneme-topentry-rail{left:84px}",
       // 菜单让位只在「收起 + 入口确实挂在标题栏里」时生效；展开态完全不碰宿主变量。
-      "html[data-windows-titlebar]:has([data-sidebar-collapsed=true]):has([data-plugin-entry=\"@modusensus/dsh-mneme\"]){--dsh-windows-menu-start:120px}",
+      "html[data-windows-titlebar]:has([data-sidebar-collapsed=true]):has([data-plugin-entry=\"@fg-lab/dsh-mneme\"]){--dsh-windows-menu-start:120px}",
       // --- 功能开关：一行一开关，Claude 式安静排版 ---
       ".mneme-featgroup{flex:none;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--mneme-fg-dim);margin:16px 0 2px}",
       ".mneme-featrow{display:flex;align-items:center;gap:14px;padding:11px 2px;border-bottom:1px solid var(--dsw-alias-border-l1)}",
@@ -3961,7 +3961,7 @@ window.__ModuleLoader__.load({
     ].join("\n");
     if (typeof document !== "undefined" && document.querySelector(`style[data-plugin-css="${CSS_TAG}"]`) === null) {
       const tag = document.createElement("style");
-      tag.dataset.plugin = "@modusensus/dsh-mneme";
+      tag.dataset.plugin = "@fg-lab/dsh-mneme";
       tag.dataset.pluginCss = CSS_TAG;
       tag.textContent = css;
       document.head.appendChild(tag);
@@ -10857,7 +10857,7 @@ window.__ModuleLoader__.load({
             // 变动都重新落位并重读类名；宿主/皮肤异步改写类名也靠这条同步，否则
             // portal 按钮会停留在捕获时刻的旧类上（宽度/对齐失配）。
             created = document.createElement("div");
-            created.dataset.pluginEntry = "@modusensus/dsh-mneme";
+            created.dataset.pluginEntry = "@fg-lab/dsh-mneme";
             place(region);
             setHost(created);
             sync(region);

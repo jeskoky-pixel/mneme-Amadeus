@@ -4,7 +4,7 @@
 // 逻辑。这里只做三件事——推源、收编、给结论；路由那侧只管鉴权与搬运。
 //
 // 为什么源不让用户输入：既有用户的 transformers 就装在 <profile>/node_modules 里，
-// 而插件自身也在那儿（<profile>/node_modules/@modusensus/dsh-mneme/）。所以从插件
+// 而插件自身也在那儿（<profile>/node_modules/@fg-lab/dsh-mneme/）。所以从插件
 // 自己的位置往上三级就能推出源目录，面板不必传参，也不把「从任意目录收编」变成
 // 一个对外能力。
 //
@@ -27,7 +27,7 @@ import { defaultRuntimeDir, describePayload, detectLibc } from "./layout.js";
 /**
  * 从插件自身位置推出宿主 node_modules。
  *
- * `<profile>/node_modules/@modusensus/dsh-mneme/lib/<file>` 往上是
+ * `<profile>/node_modules/@fg-lab/dsh-mneme/lib/<file>` 往上是
  * `lib` → `dsh-mneme` → `@modusensus` → `node_modules`，所以 dirname 四次。
  * 调用方传自己的 `import.meta.url`，src/ 与 lib/ 这两种同深度布局都成立。
  *
@@ -36,10 +36,10 @@ import { defaultRuntimeDir, describePayload, detectLibc } from "./layout.js";
  * 这个值要参与比较与拼接，形态得是干净的那种。
  *
  * 为什么这个推导对两种 linker 都成立：
- * - hoisted：插件在 `<profile>/node_modules/@modusensus/dsh-mneme/`，上三级就是 profile 的
+ * - hoisted：插件在 `<profile>/node_modules/@fg-lab/dsh-mneme/`，上三级就是 profile 的
  *   node_modules，依赖都平铺在那儿；
  * - isolated：Node 默认解析 symlink 后的真实路径，插件实际位于
- *   `<profile>/node_modules/.pnpm/<pkg>/node_modules/@modusensus/dsh-mneme/`，上三级正好是
+ *   `<profile>/node_modules/.pnpm/<pkg>/node_modules/@fg-lab/dsh-mneme/`，上三级正好是
  *   那个虚拟 store 的 node_modules —— 而 pnpm 正是把该包的依赖放在它的同级。
  * 两种情况都指向「装着这个插件依赖的那个 node_modules」，这正是要收编的东西。
  * @param {string} fromModuleUrl - 调用方自己的 import.meta.url。
