@@ -129,7 +129,7 @@
   },
   "scripts": {
     "sync": "node scripts/sync-lib.js",
-    "prepack": "npm run sync",
+    "prepack": "node scripts/sync-lib.js",
     "test": "node --test test/*.test.js",
     "test:coverage": "c8 node --test test/*.test.js",
     "badge:sync": "node scripts/sync-test-badge.mjs",
@@ -161,3 +161,4 @@
     "onnxruntime-node@1.30.0": true
   }
 }
+
